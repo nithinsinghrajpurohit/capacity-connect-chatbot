@@ -1,0 +1,59 @@
+<!-- 
+  ═══════════════════════════════════════════════════════════
+  SASTRA AI LEARNING ASSISTANT — Integration Snippet
+  Capacity Connect | SIH 2026 Problem 26075
+  ═══════════════════════════════════════════════════════════
+  
+  HOW TO USE ON ANY WEBSITE / LOGIN PAGE:
+  1. Start the backend:  python app.py
+  2. Paste the lines below BEFORE </body> in any HTML page
+  3. The floating Sastra chatbot appears on every page
+-->
+
+<!-- STEP 1: Load the widget CSS -->
+<link rel="stylesheet" href="http://localhost:5000/static/chatbot-widget.css">
+
+<!-- STEP 2: Configure API URL & Logged-In User from your website -->
+<script>
+  window.ASTRA_API_URL = 'http://localhost:5000';
+  
+  // OPTION A: Set the logged-in username directly from your website session
+  window.SASTRA_USER = {
+    full_name: "Sneha Patel",   // The user's name from your login session
+    username: "sneha",
+    role: "trainee"
+  };
+</script>
+
+<!-- STEP 3: Load the widget JS (auto-initializes & auto-syncs with login) -->
+<script src="http://localhost:5000/static/chatbot-widget.js"></script>
+
+<!--
+  ┌──────────────────────────────────────────────────────────┐
+  │  HOW SASTRA DETECTS LOGGED-IN USERS ON OTHER SITES      │
+  ├──────────────────────────────────────────────────────────┤
+  │  Method 1: Global Variable                               │
+  │    window.SASTRA_USER = "Sneha"                          │
+  │    or window.SASTRA_USER = { full_name: "Sneha Patel" }  │
+  │                                                          │
+  │  Method 2: URL Parameters on Login Redirect              │
+  │    https://yoursite.com/dashboard?username=Sneha         │
+  │                                                          │
+  │  Method 3: localStorage / sessionStorage                 │
+  │    localStorage.setItem('username', 'Sneha');            │
+  │    localStorage.setItem('user', JSON.stringify({..}));   │
+  │                                                          │
+  │  Method 4: JavaScript API after Login Ajax               │
+  │    window.Sastra.setUser("Sneha Patel");                 │
+  │                                                          │
+  │  Method 5: Cross-Window postMessage (if in iframe)       │
+  │    window.postMessage({                                  │
+  │      type: 'SASTRA_SET_USER',                            │
+  │      user: { full_name: 'Sneha Patel' }                  │
+  │    }, '*');                                              │
+  │                                                          │
+  │  Method 6: Auto-Detection from Login Forms               │
+  │    Sastra automatically detects values from inputs       │
+  │    like <input name="username"> or <input id="username"> │
+  └──────────────────────────────────────────────────────────┘
+-->

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Capacity Connect</title>
+    <link rel="stylesheet" href="/static/lms.css">
+    <style>
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .auth-card {
+            width: 100%;
+            max-width: 450px;
+        }
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .auth-header h1 {
+            color: var(--electric-cyan);
+            margin-bottom: 0.5rem;
+        }
+        .auth-header p {
+            color: var(--slate-gray);
+            font-size: 0.9rem;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="lms-card auth-card">
+            <div class="auth-header">
+                <h1>Capacity Connect</h1>
+                <p>Government of Odisha Learning Management System</p>
+            </div>
+
+            <div class="lms-tabs" style="justify-content: center;">
+                <button class="lms-tab active" onclick="switchTab('login')">Login</button>
+                <button class="lms-tab" onclick="switchTab('register')">Register</button>
+            </div>
+
+            <div id="alert-box" class="lms-alert hidden"></div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="lms-form" onsubmit="handleLogin(event)">
+                <div class="lms-form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" required>
+                </div>
+                <div class="lms-form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <button type="submit" class="lms-btn lms-btn-primary" style="margin-top: 1rem;">Login</button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="lms-form hidden" onsubmit="handleRegister(event)">
+                <div class="lms-form-group">
+                    <label for="reg-username">Username</label>
+                    <input type="text" id="reg-username" required>
+                </div>
+                <div class="lms-form-group">
+                    <label for="reg-password">Password</label>
+                    <input type="password" id="reg-password" required>
+                </div>
+                <div class="lms-form-group">
+                    <label for="reg-email">Email</label>
+                    <input type="email" id="reg-email" required>
+                </div>
+                <div class="lms-form-group">
+                    <label for="reg-fullname">Full Name</label>
+                    <input type="text" id="reg-fullname" required>
+                </div>
+                <div class="lms-form-group">
+                    <label for="reg-role">Role</label>
+                    <select id="reg-role" required>
+                        <option value="trainee">Trainee</option>
+                        <option value="trainer">Trainer</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="lms-form-group">
+                    <label for="reg-department">Department (Optional)</label>
+                    <input type="text" id="reg-department">
+                </div>
+                <button type="submit" class="lms-btn lms-btn-primary" style="margin-top: 1rem;">Register</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.lms-tab').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            hideAlert();
+
+            if (tab === 'login') {
+                document.querySelectorAll('.lms-tab')[0].classList.add('active');
+                document.getElementById('login-form').classList.remove('hidden');
+            } else {
+                document.querySelectorAll('.lms-tab')[1].classList.add('active');
+                document.getElementById('register-form').classList.remove('hidden');
+            }
+        }
+
+        function showAlert(msg, type) {
+            const alertBox = document.getElementById('alert-box');
+            alertBox.textContent = msg;
+            alertBox.className = `lms-alert lms-alert-${type}`;
+            alertBox.classList.remove('hidden');
+        }
+
+        function hideAlert() {
+            document.getElementById('alert-box').classList.add('hidden');
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.user));
+                    window.location.href = '/dashboard';
+                } else {
+                    showAlert(data.error || 'Login failed', 'error');
+                }
+            } catch (err) {
+                showAlert('Network error. Please try again.', 'error');
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const data = {
+                username: document.getElementById('reg-username').value,
+                password: document.getElementById('reg-password').value,
+                email: document.getElementById('reg-email').value,
+                full_name: document.getElementById('reg-fullname').value,
+                role: document.getElementById('reg-role').value,
+                department: document.getElementById('reg-department').value
+            };
+
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const resData = await res.json();
+                
+                if (res.ok) {
+                    showAlert('Registration successful! Please login.', 'success');
+                    switchTab('login');
+                } else {
+                    showAlert(resData.error || 'Registration failed', 'error');
+                }
+            } catch (err) {
+                showAlert('Network error. Please try again.', 'error');
+            }
+        }
+        
+        // Auto redirect if already logged in
+        if (localStorage.getItem('auth_token')) {
+            window.location.href = '/dashboard';
+        }
+    </script>
+</body>
+</html>

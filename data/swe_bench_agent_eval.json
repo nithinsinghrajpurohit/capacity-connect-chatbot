@@ -1,0 +1,18 @@
+[
+  {
+    "instance_id": "capacity_connect_quiz_session_ttl_001",
+    "repo": "capacity-connect/backend",
+    "problem_statement": "Issue: `QUIZ_SESSIONS` unbounded dictionary memory leak under high concurrent quiz takers. Need session timestamp TTL cleanup after 1800s.",
+    "test_patch": "def test_quiz_session_cleanup():\n    cleanup_quiz_sessions()\n    assert len(QUIZ_SESSIONS) == 0\n",
+    "difficulty": "medium",
+    "resolved": true
+  },
+  {
+    "instance_id": "capacity_connect_jwt_rbac_002",
+    "repo": "capacity-connect/backend",
+    "problem_statement": "Feature: Add `@require_role('admin')` decorator to protect `/api/users/pending` and user approval routes.",
+    "test_patch": "def test_admin_rbac():\n    resp = client.get('/api/users/pending')\n    assert resp.status_code == 401\n",
+    "difficulty": "easy",
+    "resolved": true
+  }
+]

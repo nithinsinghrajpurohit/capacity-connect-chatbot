@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Capacity Connect</title>
+    <link rel="stylesheet" href="/static/lms.css">
+</head>
+<body>
+    <nav class="lms-nav">
+        <a href="#" class="logo">Capacity Connect</a>
+        <div class="lms-nav-links">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/courses">Courses</a>
+            <a href="/profile">Profile</a>
+        </div>
+        <div class="lms-nav-user">
+            <span id="user-name" style="font-weight: 500;">Loading...</span>
+            <span id="user-role-badge" class="lms-badge"></span>
+            <button onclick="logout()" class="lms-btn lms-btn-secondary" style="padding: 0.4rem 0.8rem;">Logout</button>
+        </div>
+    </nav>
+
+    <div class="lms-container" id="main-container">
+        <!-- Content injected based on role -->
+        <h2 style="text-align: center; margin-top: 2rem;">Loading Dashboard...</h2>
+    </div>
+
+    <!-- Astra Chatbot Widget -->
+    <div id="ast-ra-widget"></div>
+    <script src="/static/chatbot-widget.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            if(window.AstraWidget) window.AstraWidget.init();
+        });
+    </script>
+
+    <script>
+        const token = localStorage.getItem('auth_token');
+        const userDataStr = localStorage.getItem('user_data');
+
+        if (!token || !userDataStr) {
+            window.location.href = '/login';
+        }
+
+        const user = JSON.parse(userDataStr);
+        document.getElementById('user-name').textContent = user.full_name || user.username;
+        const roleBadge = document.getElementById('user-role-badge');
+        roleBadge.textContent = user.role;
+        roleBadge.className = `lms-badge ${user.role}`;
+
+        async function fetchAPI(endpoint) {
+            const res = await fetch(endpoint, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) {
+                    logout();
+                }
+                throw new Error(`API error: ${res.status}`);
+            }
+            return res.json();
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            window.location.href = '/login';
+        }
+
+        async function loadDashboard() {
+            const container = document.getElementById('main-container');
+            container.innerHTML = ''; // clear
+
+            if (user.role === 'trainee') {
+                renderTraineeDashboard(container);
+            } else if (user.role === 'admin') {
+                renderAdminDashboard(container);
+            } else {
+                container.innerHTML = `<h2>Welcome, ${user.username}! Dashboard for ${user.role} coming soon.</h2>`;
+            }
+        }
+
+        async function renderTraineeDashboard(container) {
+            // Placeholder Stats
+            const statsHtml = `
+                <div class="lms-stats">
+                    <div class="lms-stat-card">
+                        <div class="lms-stat-value" id="stat-enrolled">0</div>
+                        <div class="lms-stat-label">Enrolled Courses</div>
+                    </div>
+                    <div class="lms-stat-card">
+                        <div class="lms-stat-value">85%</div>
+                        <div class="lms-stat-label">Avg Quiz Score</div>
+                    </div>
+                    <div class="lms-stat-card">
+                        <div class="lms-stat-value">12</div>
+                        <div class="lms-stat-label">Lessons Completed</div>
+                    </div>
+                </div>
+            `;
+
+            // Sections
+            const contentHtml = `
+                <div class="lms-layout">
+                    <div style="flex: 2; display: flex; flex-direction: column; gap: 2rem;">
+                        <section>
+                            <h2 style="margin-bottom: 1rem;">My Courses</h2>
+                            <div class="lms-grid" id="my-courses-grid">
+                                <p>Loading courses...</p>
+                            </div>
+                        </section>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 2rem;">
+                        <div class="lms-card">
+                            <h3 style="margin-bottom: 1rem;">Announcements</h3>
+                            <div id="announcements-list">
+                                <p style="color: var(--slate-gray); font-size: 0.9rem;">No new announcements.</p>
+                            </div>
+                        </div>
+                        <div class="lms-card">
+                            <h3 style="margin-bottom: 1rem;">Recommended</h3>
+                            <p style="color: var(--slate-gray); font-size: 0.9rem; margin-bottom: 1rem;">What Should I Learn Next?</p>
+                            <button class="lms-btn lms-btn-secondary" style="width: 100%;">View Recommendations</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = statsHtml + contentHtml;
+
+            try {
+                const enrollments = await fetchAPI(`/api/enrollments/${user.id}`);
+                const grid = document.getElementById('my-courses-grid');
+                document.getElementById('stat-enrolled').textContent = enrollments.length;
+                
+                if (enrollments.length === 0) {
+                    grid.innerHTML = '<p>You are not enrolled in any courses yet.</p>';
+                } else {
+                    grid.innerHTML = enrollments.map(e => `
+                        <div class="lms-card course-card">
+                            <div class="course-card-header">
+                                <h3 class="course-card-title">Course ID: ${e.course_id}</h3>
+                            </div>
+                            <div class="course-card-desc">
+                                Status: ${e.status}<br>
+                                Enrolled: ${new Date(e.enrolled_at).toLocaleDateString()}
+                            </div>
+                            <div class="lms-progress-bar">
+                                <div class="lms-progress-fill" style="width: ${e.progress}%"></div>
+                            </div>
+                            <div class="course-card-footer">
+                                <span style="font-size: 0.8rem; color: var(--slate-gray);">${e.progress}% Complete</span>
+                                <button class="lms-btn lms-btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Continue</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                document.getElementById('my-courses-grid').innerHTML = '<p class="lms-alert lms-alert-error">Failed to load courses.</p>';
+            }
+        }
+
+        async function renderAdminDashboard(container) {
+            const statsHtml = `
+                <div class="lms-stats">
+                    <div class="lms-stat-card">
+                        <div class="lms-stat-value">25</div>
+                        <div class="lms-stat-label">Total Users</div>
+                    </div>
+                    <div class="lms-stat-card">
+                        <div class="lms-stat-value" id="stat-pending">0</div>
+                        <div class="lms-stat-label">Pending Approvals</div>
+                    </div>
+                    <div class="lms-stat-card">
+                        <div class="lms-stat-value">8</div>
+                        <div class="lms-stat-label">Active Courses</div>
+                    </div>
+                </div>
+            `;
+
+            const contentHtml = `
+                <section>
+                    <h2 style="margin-bottom: 1rem;">Pending Approvals</h2>
+                    <div class="lms-card lms-table-container">
+                        <table class="lms-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Role</th>
+                                    <th>Department</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pending-users-table">
+                                <tr><td colspan="4">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            `;
+
+            container.innerHTML = statsHtml + contentHtml;
+
+            try {
+                // Fetch pending users
+                const pendingUsers = await fetchAPI('/api/users/pending');
+                const tbody = document.getElementById('pending-users-table');
+                document.getElementById('stat-pending').textContent = pendingUsers.length || 0;
+                
+                if (!pendingUsers || pendingUsers.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--slate-gray);">No pending approvals.</td></tr>`;
+                } else {
+                    // Populate pending users logic if the array has elements.
+                }
+            } catch (e) {
+                console.error(e);
+                const tbody = document.getElementById('pending-users-table');
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--slate-gray);">No pending approvals (API returned an error or does not exist).</td></tr>`;
+                document.getElementById('stat-pending').textContent = '0';
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>

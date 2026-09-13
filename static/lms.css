@@ -1,0 +1,355 @@
+/* === LMS Stylesheet for Capacity Connect === */
+/* Matches the dark cyber theme from demo.html */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root {
+    --deep-navy: #071426;
+    --midnight-blue: #0B1F3A;
+    --electric-cyan: #21D4FD;
+    --royal-blue: #2563EB;
+    --violet: #7C3AED;
+    --emerald: #22C55E;
+    --warm-yellow: #FACC15;
+    --coral: #FB7185;
+    --soft-white: #F8FAFC;
+    --slate-gray: #64748B;
+    --card-bg: rgba(255,255,255,0.03);
+    --border: rgba(255,255,255,0.08);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--deep-navy);
+    color: var(--soft-white);
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Navbar */
+.lms-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: var(--midnight-blue);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.lms-nav .logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--electric-cyan);
+    text-decoration: none;
+}
+
+.lms-nav-links {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.lms-nav-links a {
+    color: var(--soft-white);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.lms-nav-links a:hover {
+    color: var(--electric-cyan);
+}
+
+.lms-nav-user {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Layout Container */
+.lms-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.lms-layout {
+    display: flex;
+    gap: 2rem;
+}
+
+/* Sidebar */
+.lms-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+    background: var(--midnight-blue);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+/* Card Component */
+.lms-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    backdrop-filter: blur(10px);
+}
+
+/* Buttons */
+.lms-btn {
+    display: inline-block;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.lms-btn-primary {
+    background: linear-gradient(135deg, var(--electric-cyan), var(--royal-blue));
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(33, 212, 253, 0.2);
+}
+
+.lms-btn-primary:hover {
+    box-shadow: 0 6px 20px rgba(33, 212, 253, 0.4);
+    transform: translateY(-2px);
+}
+
+.lms-btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--soft-white);
+}
+
+.lms-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.lms-btn-danger {
+    background: rgba(251, 113, 133, 0.2);
+    color: var(--coral);
+    border: 1px solid var(--coral);
+}
+
+.lms-btn-danger:hover {
+    background: var(--coral);
+    color: #fff;
+}
+
+/* Forms */
+.lms-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.lms-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.lms-form label {
+    font-size: 0.85rem;
+    color: var(--slate-gray);
+    font-weight: 500;
+}
+
+.lms-form input, .lms-form select, .lms-form textarea {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem;
+    color: var(--soft-white);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    transition: border-color 0.3s;
+}
+
+.lms-form input:focus, .lms-form select:focus, .lms-form textarea:focus {
+    outline: none;
+    border-color: var(--electric-cyan);
+}
+
+/* Progress Bar */
+.lms-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.lms-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--electric-cyan), var(--violet));
+    border-radius: 4px;
+    transition: width 0.5s ease-out;
+}
+
+/* Badges */
+.lms-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.lms-badge.trainee { background: rgba(33, 212, 253, 0.2); color: var(--electric-cyan); }
+.lms-badge.trainer { background: rgba(250, 204, 21, 0.2); color: var(--warm-yellow); }
+.lms-badge.admin { background: rgba(251, 113, 133, 0.2); color: var(--coral); }
+
+/* Grid */
+.lms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Stats */
+.lms-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.lms-stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.lms-stat-value {
+    font-size: 2.5rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    color: var(--electric-cyan);
+    margin-bottom: 0.5rem;
+}
+
+.lms-stat-label {
+    font-size: 0.85rem;
+    color: var(--slate-gray);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Alerts */
+.lms-alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.lms-alert-success { background: rgba(34, 197, 94, 0.1); border: 1px solid var(--emerald); color: var(--emerald); }
+.lms-alert-error { background: rgba(251, 113, 133, 0.1); border: 1px solid var(--coral); color: var(--coral); }
+.lms-alert-info { background: rgba(33, 212, 253, 0.1); border: 1px solid var(--electric-cyan); color: var(--electric-cyan); }
+
+/* Tabs */
+.lms-tabs {
+    display: flex;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+}
+
+.lms-tab {
+    padding: 0.8rem 1.5rem;
+    background: none;
+    border: none;
+    color: var(--slate-gray);
+    font-size: 1rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+
+.lms-tab.active {
+    color: var(--electric-cyan);
+    border-bottom-color: var(--electric-cyan);
+}
+
+/* Course Card Specifics */
+.course-card {
+    display: flex;
+    flex-direction: column;
+}
+.course-card-header { margin-bottom: 1rem; }
+.course-card-title { font-size: 1.2rem; color: var(--soft-white); margin-bottom: 0.5rem; }
+.course-card-desc { font-size: 0.85rem; color: var(--slate-gray); line-height: 1.5; flex-grow: 1; }
+.course-card-footer { margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+
+/* Timeline */
+.lms-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+.lms-timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+}
+.lms-timeline-item {
+    position: relative;
+    padding-bottom: 1.5rem;
+}
+.lms-timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -1.8rem;
+    top: 0.2rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--midnight-blue);
+    border: 2px solid var(--electric-cyan);
+}
+
+/* Table */
+.lms-table-container { overflow-x: auto; }
+.lms-table { width: 100%; border-collapse: collapse; }
+.lms-table th, .lms-table td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+.lms-table th { font-size: 0.85rem; color: var(--slate-gray); text-transform: uppercase; font-weight: 600; }
+.lms-table td { font-size: 0.9rem; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .lms-layout { flex-direction: column; }
+    .lms-sidebar { width: 100%; }
+    .lms-nav { padding: 1rem; }
+    .lms-nav-links { display: none; }
+}

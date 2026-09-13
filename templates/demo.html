@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capacity Connect - Astra Chatbot Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #071426;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+        .hero {
+            text-align: center;
+            padding: 80px 20px 40px;
+            background: radial-gradient(ellipse at center, #0B1F3A 0%, #071426 100%);
+        }
+        .hero h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #e2e8f0, #21D4FD);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+        .hero p {
+            font-size: 18px;
+            color: #94a3b8;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        .feature {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.3s;
+        }
+        .feature:hover {
+            border-color: rgba(33,212,253,0.3);
+            background: rgba(33,212,253,0.03);
+        }
+        .feature-icon { font-size: 32px; margin-bottom: 12px; }
+        .feature h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        .feature p {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+        .demo-hint {
+            text-align: center;
+            padding: 40px 20px 80px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+        .demo-hint .arrow {
+            font-size: 32px;
+            color: #21D4FD;
+            display: block;
+            margin-bottom: 8px;
+            animation: bounce 1.5s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .credentials {
+            max-width: 600px;
+            margin: 0 auto 40px;
+            padding: 0 20px;
+        }
+        .credentials h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            text-align: center;
+            margin-bottom: 16px;
+            color: #21D4FD;
+        }
+        .cred-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        .cred-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .cred-card h4 {
+            font-size: 12px;
+            color: #21D4FD;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .cred-card p {
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .cred-card code {
+            background: rgba(33,212,253,0.1);
+            padding: 1px 5px;
+            border-radius: 4px;
+            color: #21D4FD;
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>Capacity Connect</h1>
+        <p>Smart India Hackathon 2026 — Government of Odisha<br>Digital Capacity Building Portal with AI Learning Assistant</p>
+    </div>
+
+    <div class="credentials">
+        <h3>Demo Login Credentials</h3>
+        <div class="cred-grid">
+            <div class="cred-card">
+                <h4>Admin</h4>
+                <p><code>admin</code> / <code>admin123</code></p>
+            </div>
+            <div class="cred-card">
+                <h4>Trainer</h4>
+                <p><code>trainer_priya</code> / <code>trainer123</code></p>
+            </div>
+            <div class="cred-card">
+                <h4>Trainee</h4>
+                <p><code>sneha</code> / <code>trainee123</code></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="features">
+        <div class="feature">
+            <div class="feature-icon">✦</div>
+            <h3>AI Tutor</h3>
+            <p>Teaches concepts at your level — beginner to advanced. Uses intuition, examples, and practice.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">🧠</div>
+            <h3>Smart Quizzes</h3>
+            <p>Quiz on any topic. Tracks scores, identifies weak areas, and recommends revision.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">📊</div>
+            <h3>Progress Tracking</h3>
+            <p>View enrolled courses, quiz scores, project status, and personalized recommendations.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">🎯</div>
+            <h3>Course-Aware</h3>
+            <p>Knows your enrolled courses, weak areas, and suggests what to learn next.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">📝</div>
+            <h3>Notes & Summaries</h3>
+            <p>Generate structured notes, flashcards, and revision materials on any topic.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">🏛️</div>
+            <h3>3-Role RBAC</h3>
+            <p>Admin approves users. Trainers manage courses. Trainees learn and get certified.</p>
+        </div>
+    </div>
+
+    <div class="features">
+        <div class="feature">
+            <div class="feature-icon">📚</div>
+            <h3>Deep Explanations</h3>
+            <p>Try "teach me Python functions" or "explain ML completely" — 11-section structured lessons with visuals.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">❓</div>
+            <h3>Socratic Tutoring</h3>
+            <p>Try "guide me through loops" — Astra asks guiding questions instead of giving answers.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">💻</div>
+            <h3>Code & Math Modes</h3>
+            <p>Paste code with an error, or ask "solve y=2x+5". Step-by-step diagnosis and solutions.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">🗺️</div>
+            <h3>Learning Paths & PDFs</h3>
+            <p>Toolbar: quiz sessions, flashcards, PDF study guides, roadmaps, voice input, file attach.</p>
+        </div>
+    </div>
+
+    <div class="demo-hint">
+        <span class="arrow">↗</span>
+        Click the floating button (bottom-right) to start chatting with Astra
+    </div>
+
+    <script src="/static/chatbot-widget.js"></script>
+    <script>window.ASTRA_API_URL = 'http://localhost:5000';</script>
+</body>
+</html>
