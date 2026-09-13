@@ -47,6 +47,7 @@ interface Message {
 
 const MODES = [
   { id: 'learn', label: 'Learn', icon: BookOpen, desc: 'Quick definition & example (less content)' },
+  { id: 'deep', label: 'Deep Explanation', icon: Sparkles, desc: 'Comprehensive breakdown, table & code' },
   { id: 'image', label: 'Visual & Table', icon: TableIcon, desc: 'Vector Concept Diagrams & Tables' },
   { id: 'notes', label: 'Study Notes & PDF', icon: FileText, desc: 'Synthesize & PDF Export' },
   { id: 'socratic', label: 'Socratic', icon: HelpCircle, desc: 'Guiding dialogue' },
@@ -570,9 +571,11 @@ export const AstraChatbot: React.FC<{
       // 1. Check if Image / Diagram Generation Request
       const isImageGenRequest =
         activeMode === 'image' ||
-        /(?:@?(?:create|generate|show|draw|make|render)\s+(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic|picture|wallpaper)|@?(?:image|diagram|illustrate|visualize)\b|\b(?:generate|create|draw)\s+(?:an?\s+)?(?:image|diagram|visual|photo|picture)\b|\b(?:make it photorealistic|cyberpunk neon|3d pixar|studio ghibli)\b)/i.test(
-          textToSend
-        );
+        (activeMode !== 'deep' && activeMode !== 'learn' && activeMode !== 'quiz' &&
+          /(?:@?(?:create|generate|show|draw|make|render)\s+(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic|picture|wallpaper)|@?(?:image|diagram|illustrate|visualize)\b|\b(?:generate|create|draw)\s+(?:an?\s+)?(?:image|diagram|visual|photo|picture)\b|\b(?:make it photorealistic|cyberpunk neon|3d pixar|studio ghibli)\b)/i.test(
+            textToSend
+          )) ||
+        textToSend.trim().startsWith('@image') || textToSend.trim().startsWith('@create image');
 
       setLoadingStatus(
         isImageGenRequest
@@ -1449,6 +1452,8 @@ export const AstraChatbot: React.FC<{
                       ? 'Ask a question or explain this image / diagram...'
                       : activeMode === 'learn'
                       ? 'Enter a topic for quick definition & example (e.g. "Photosynthesis", "Variables")...'
+                      : activeMode === 'deep'
+                      ? 'Enter a topic for deep explanation with tables & simulation (e.g. "Photosynthesis", "Docker")...'
                       : activeMode === 'image'
                       ? 'Prompt a diagram to draw (e.g. "Draw a diagram of Photosynthesis")...'
                       : activeMode === 'quiz'

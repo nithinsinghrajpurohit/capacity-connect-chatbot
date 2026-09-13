@@ -19,7 +19,12 @@ try:
 except ImportError:
     _llm = None
     _llm_available = False
-MODES = ["learn", "socratic", "quiz", "revise", "notes", "path", "code", "math", "project", "research", "image"]
+MODES = ["learn", "deep", "socratic", "quiz", "revise", "notes", "path", "code", "math", "project", "research", "image"]
+DEEP_TRIGGERS = [
+    "deep explanation", "deep dive", "in depth", "explain in depth", "explain deeply",
+    "comprehensive explanation", "deep dive into", "deeply explain", "detailed explanation",
+    "deep mode", "explain thoroughly"
+]
 IMAGE_TRIGGERS = [
     "create image", "generate image", "draw image", "diagram of", "visual of", "illustration", 
     "visual roadmap", "show image", "@image", "@create image", "draw a", "create a visual", 
@@ -46,6 +51,8 @@ def detect_mode(message, explicit_mode=None):
     if explicit_mode in MODES:
         return explicit_mode
     m = message.lower()
+    if any(t in m for t in DEEP_TRIGGERS):
+        return "deep"
     if any(t in m for t in IMAGE_TRIGGERS) or m.startswith("@create image") or m.startswith("@image"):
         return "image"
     if any(t in m for t in QUIZ_TRIGGERS):
@@ -746,6 +753,136 @@ def dynamic_easy_learn(topic_title):
     )
 
 
+def dynamic_deep_explanation(topic_title):
+    clean_title = topic_title.strip().rstrip("?").replace("explain", "").replace("what is", "").strip().title() or "Core Concept"
+    t_lower = clean_title.lower()
+
+    if "photo" in t_lower:
+        return (
+            f"Hello and welcome! I am Sastra, your learning companion. It is wonderful to explore new concepts with you today. Let's dive into one of nature's most beautiful and essential processes: Photosynthesis.\n\n"
+            f"At its heart, photosynthesis is simply the way green plants make their own food using sunlight. Imagine if you could stand in the sun, take a deep breath of air, drink some water, and instantly create a delicious meal inside your body. That is exactly what plants do!\n\n"
+            f"Let's break down this amazing process step-by-step with analogies, structured tables, and even a quick Python code simulation to make it super easy to understand.\n\n"
+            f"---\n\n"
+            f"❖ The Golden Equation of Photosynthesis\n"
+            f"Before we look at the details, let's look at the basic chemical recipe.\n\n"
+            f"Plants take in Carbon Dioxide from the air and Water from the soil. Using Sunlight as the energy source, they convert these into Glucose (their food) and release Oxygen into the air for us to breathe.\n\n"
+            f"📌 Recipe Equation:\n"
+            f"6 Carbon Dioxide (CO2) + 6 Water (H2O) + Light Energy ➔ 1 Glucose (C6H12O6) + 6 Oxygen (O2)\n\n"
+            f"---\n\n"
+            f"📊 Easy-to-Learn Structured Table\n"
+            f"Here is a handy overview of the key components of photosynthesis to help you master the concept at a glance:\n\n"
+            f"| Concept / Component | Plain English Meaning | Intuitive Everyday Analogy | Practical Code / Syntax Example | Key Rule / Exam Tip |\n"
+            f"| :--- | :--- | :--- | :--- | :--- |\n"
+            f"| Chloroplast | The tiny microscopic structures inside plant cells where photosynthesis happens | A solar-powered kitchen inside the leaf | `kitchen = Chloroplast()` | Chloroplasts are only found in plant cells, not animal cells! |\n"
+            f"| Chlorophyll | The green pigment inside chloroplasts that catches sunlight | Miniature solar panels absorbing light waves | `solar_panel.absorb_sunlight()` | Chlorophyll absorbs red and blue light but reflects green light, which is why plants look green |\n"
+            f"| Light-Dependent Reactions | The first stage that requires direct sunlight to produce energy molecules | The daytime prep chefs who harvest energy and prep the kitchen | `def daylight_shift(): energy = True` | This stage occurs in the Thylakoid membranes of the chloroplast |\n"
+            f"| Calvin Cycle (Light-Independent) | The second stage that uses stored energy to turn carbon dioxide into glucose | The night chef baking the actual bread using prep work | `def night_shift(): create_glucose()` | This stage does not need direct sunlight and takes place in the Stroma |\n\n"
+            f"---\n\n"
+            f"❯ How the Process Works: Step-by-Step\n"
+            f"Let us trace the path of photosynthesis through the plant:\n\n"
+            f"✦ 1. Catching the Light\n"
+            f"The plant leaves act as solar panels. Chlorophyll inside the chloroplasts captures light energy from the sun.\n\n"
+            f"✦ 2. Drinking Water\n"
+            f"The roots drink water from the soil, which travels up through the stem to the leaves.\n\n"
+            f"✦ 3. Breathing in Carbon Dioxide\n"
+            f"The leaves have tiny, microscopic pores called stomata (think of them as little nostrils). The plant inhales carbon dioxide through these pores.\n\n"
+            f"✦ 4. The Cooking Phase (The Calvin Cycle)\n"
+            f"Using the captured solar energy, the plant tears apart the water and carbon dioxide molecules and rearranges them to build glucose (sugar).\n\n"
+            f"✦ 5. Releasing Oxygen\n"
+            f"As a byproduct of this cooking process, oxygen is created. Because the plant does not need it, it exhales the oxygen back into the atmosphere for us to breathe.\n\n"
+            f"---\n\n"
+            f"💡 Simulating Photosynthesis in Python\n"
+            f"To bring this process to life for an admin or data analyst, we can model photosynthesis using a simple Python script. This code simulates how a plant checks for ingredients before generating food and oxygen:\n\n"
+            f"```python\n"
+            f"class PlantCell:\n"
+            f"    def __init__(self, name):\n"
+            f"        self.name = name\n\n"
+            f"    def perform_photosynthesis(self, water_units, co2_units, sunlight_available):\n"
+            f"        print(f'--- Running Photosynthesis Simulation for {{self.name}} ---')\n"
+            f"        if water_units >= 6 and co2_units >= 6 and sunlight_available:\n"
+            f"            glucose_created = 1\n"
+            f"            oxygen_released = 6\n"
+            f"            print('Status: Successful Cooking!')\n"
+            f"            print(f'Result: Created {{glucose_created}} unit of Glucose.')\n"
+            f"            print(f'Result: Released {{oxygen_released}} units of Oxygen into the air.')\n"
+            f"            return {{'glucose': glucose_created, 'oxygen': oxygen_released}}\n"
+            f"        else:\n"
+            f"            print('Status: Failed. Missing essential ingredients (Water, CO2, or Sunlight).')\n"
+            f"            return None\n\n"
+            f"# Let\\'s test our plant kitchen!\n"
+            f"my_plant = PlantCell('Fern')\n"
+            f"my_plant.perform_photosynthesis(water_units=6, co2_units=6, sunlight_available=True)\n"
+            f"```\n\n"
+            f"---\n\n"
+            f"⚠️ Exam & Revision Tips\n"
+            f"◈ Stomata Control: The tiny pores on leaves (stomata) open to let Carbon Dioxide in, but they can close if the plant is losing too much water on a hot day.\n"
+            f"◈ Energy Storage: Glucose isn't just used for immediate energy; plants often store it as starch (like potatoes) for later use.\n"
+            f"◈ Cellular Respiration: Remember, plants photosynthesize to make food, but they also perform cellular respiration to break down that food into usable energy.\n\n"
+            f"How does this explanation feel to you? Would you like to explore the differences between Light and Dark reactions in more detail, or perhaps try another science topic next? I am right here to help you learn at your own pace!"
+        )
+
+    return (
+        f"Hello and welcome! I am Sastra, your learning companion. Let's explore the core principles and execution mechanics of {clean_title}.\n\n"
+        f"At its heart, {clean_title} is designed to manage logic, data, and system state predictably. "
+        f"Imagine a well-engineered command center where every component communicates smoothly to deliver reliable, robust outcomes!\n\n"
+        f"Let's break down this concept step-by-step with intuitive analogies, structured tables, and a practical Python simulation.\n\n"
+        f"---\n\n"
+        f"❖ The Golden Core Principle of {clean_title}\n"
+        f"Every reliable implementation of {clean_title} relies on predictable inputs, verified state transformations, and clear interface boundaries.\n\n"
+        f"📌 Core Architecture:\n"
+        f"Inputs & Configuration + Execution Logic + Defensive Validation ➔ Robust {clean_title} Outcome\n\n"
+        f"---\n\n"
+        f"📊 Easy-to-Learn Structured Table\n"
+        f"Here is a handy overview of the key components of {clean_title} to help you master the concept at a glance:\n\n"
+        f"| Concept / Component | Plain English Meaning | Intuitive Everyday Analogy | Practical Code / Syntax Example | Key Rule / Exam Tip |\n"
+        f"| :--- | :--- | :--- | :--- | :--- |\n"
+        f"| Initial State | Baseline inputs and setup configuration | Prepping raw ingredients on a kitchen counter | `state = init_state()` | Always validate inputs before execution |\n"
+        f"| Execution Engine | Core transformation pipeline and algorithms | The chef actively preparing the dish | `result = engine.run(state)` | Keep functions modular and deterministic |\n"
+        f"| Defensive Guard | Boundary validation and safety assertion | Quality checkpoint before serving to customers | `assert result.is_valid()` | Catch edge cases before returning output |\n"
+        f"| Storage & Cache | Delivering output and persisting state | Plating and storing dishes for immediate access | `cache.save(result)` | Avoid redundant recomputations |\n\n"
+        f"---\n\n"
+        f"❯ How the Process Works: Step-by-Step\n"
+        f"Let us trace the lifecycle of {clean_title}:\n\n"
+        f"✦ 1. Initialization & Setup\n"
+        f"The runtime environment loads configuration parameters and allocates memory resources.\n\n"
+        f"✦ 2. Input Ingestion\n"
+        f"Parameters and datasets are received through strict interface contracts.\n\n"
+        f"✦ 3. State Transformation\n"
+        f"The core algorithms evaluate conditions, apply business logic, and compute intermediate states.\n\n"
+        f"✦ 4. Defensive Verification\n"
+        f"Outputs undergo boundary checks to guarantee correctness, security, and stability.\n\n"
+        f"✦ 5. Result Delivery\n"
+        f"The finalized payload is delivered to consumers or saved for rapid retrieval.\n\n"
+        f"---\n\n"
+        f"💡 Simulating {clean_title} in Python\n"
+        f"To bring this process to life for an admin or developer, we can model {clean_title} using a simple Python script:\n\n"
+        f"```python\n"
+        f"class {clean_title.replace(' ', '')}System:\n"
+        f"    def __init__(self, name):\n"
+        f"        self.name = name\n"
+        f"        self.is_active = True\n\n"
+        f"    def execute_workflow(self, input_payload, resources_available):\n"
+        f"        print(f'--- Running {{self.name}} Simulation ---')\n"
+        f"        if input_payload and resources_available:\n"
+        f"            result = f'Processed: {{input_payload}}'\n"
+        f"            print('Status: Successfully Executed!')\n"
+        f"            return {{'status': 'success', 'result': result}}\n"
+        f"        else:\n"
+        f"            print('Status: Halted - Missing prerequisites')\n"
+        f"            return None\n\n"
+        f"# Testing our simulation\n"
+        f"demo = {clean_title.replace(' ', '')}System('{clean_title}')\n"
+        f"demo.execute_workflow(input_payload='Verified Data', resources_available=True)\n"
+        f"```\n\n"
+        f"---\n\n"
+        f"⚠️ Exam & Revision Tips\n"
+        f"◈ Modularity Principle: Keep modules decoupled so {clean_title} components can be tested and scaled independently.\n"
+        f"◈ Fail Fast: Validate preconditions early so errors are caught before expensive operations.\n"
+        f"◈ Observability: Log state transitions to ensure debugging and profiling are effortless.\n\n"
+        f"How does this explanation feel to you? Would you like to explore deeper nuances, take an interactive quiz, or test another topic next? I am right here to help you learn at your own pace!"
+    )
+
+
 def teach_topic_concise(topic_key, subtopic_key):
     """Concise definition + example for Learn Mode (Less content)."""
     topic_data = base.TOPIC_KNOWLEDGE.get(topic_key)
@@ -1056,6 +1193,7 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     is_pure_path = bool(re.search(r"\b(?:show learning path|learning path|road map|roadmap|curriculum|syllabus|study plan|how to learn|path to learn|steps to master)\b", clean_m, re.I))
     is_pure_simpler = bool(re.match(r"^(?:explain simpler|simpler|explain it simply|explain simply|easy format|step by step)\b", clean_m, re.I))
     is_pure_revise = bool(re.match(r"^(?:flashcards|flash cards|revise)\b", clean_m, re.I))
+    is_pure_deep = bool(re.search(r"\b(?:deep explanation|deep dive|explain in depth|in depth|detailed breakdown|masterclass|deep explain|explain deep)\b", clean_m, re.I))
 
     concept_query = message
     if is_pure_quiz and active_topic:
@@ -1070,10 +1208,14 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
         concept_query = active_topic
     elif is_pure_revise and active_topic:
         concept_query = active_topic
+    elif is_pure_deep and active_topic:
+        concept_query = active_topic
 
     mode = detect_mode(message, explicit_mode)
     if explicit_mode in MODES:
         mode = explicit_mode
+    elif any(t in clean_m for t in DEEP_TRIGGERS):
+        mode = "deep"
     elif is_pure_quiz:
         mode = "quiz"
     elif is_pure_notes:
@@ -1086,6 +1228,8 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
         mode = "learn"
     elif is_pure_revise:
         mode = "revise"
+    elif is_pure_deep:
+        mode = "deep"
 
     frustrated = base.detect_frustration(message)
     skill = base.detect_skill_level(message)
@@ -1198,7 +1342,7 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     ]
     is_remix_request = bool(re.search(r"\b(photorealistic|cyberpunk|neon|3d pixar|anime|ghibli|pixar|cinematic|oil painting|watercolor)\b", message, re.I)) and any(k in message.lower() for k in ("make it", "theme", "style", "animation"))
     is_img_req = (
-        explicit_mode not in ("learn", "quiz") and (
+        explicit_mode not in ("learn", "quiz", "deep") and mode not in ("deep",) and (
             mode == "image" or explicit_mode in ("image", "diagram") or is_remix_request or any(re.search(pat, message.strip(), re.IGNORECASE) for pat in img_triggers)
         )
     ) or (message.strip().startswith("@image") or message.strip().startswith("@create image"))
@@ -1605,6 +1749,94 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
             "reply": dynamic_easy_learn(target_learn_topic),
             "mode": "learn",
             "suggestions": ["Quiz me on this 🎯", "Visual & Table 📊", "Deep Dive 🔍", "Download PDF Notes 📄"]
+        }
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # ── 10. Deep Explanation Mode ("deep")
+    # Comprehensive pedagogical masterclass format:
+    # 1. Warm conversational intro & everyday relatable analogy
+    # 2. ❖ The Golden Equation / Architectural Principle
+    # 3. 📊 Easy-to-Learn Structured Table (5 columns)
+    # 4. ❯ How the Process Works: Step-by-Step (4-5 numbered phases)
+    # 5. 💡 Simulating in Python (complete runnable code script)
+    # 6. ⚠️ Exam & Revision Tips (3 bullet points with ◈)
+    # 7. Friendly closing invitation
+    # ─────────────────────────────────────────────────────────────────────────────
+    if mode == "deep" or explicit_mode == "deep":
+        clean_concept = extract_clean_concept_title(concept_query if (is_pure_deep or is_pure_simpler) else message)
+        target_deep_topic = clean_concept or message.strip().rstrip("?").title() or "Core Concept"
+        target_deep_topic = re.sub(r"^(?:explain|teach|tell me about|deep dive into|deep explanation of|master)\s+", "", target_deep_topic, flags=re.I).strip()
+        target_deep_topic = re.sub(r"\s+(?:simply|in depth|in detail|deeply)$", "", target_deep_topic, flags=re.I).strip()
+        if not target_deep_topic:
+            target_deep_topic = "Photosynthesis" if "photo" in message.lower() else "Core Concept"
+
+        # Specific masterclass for Photosynthesis matching user's exact specification
+        if any(k in target_deep_topic.lower() for k in ("photosynthesis", "photo synthesis", "plant food", "chloroplast")):
+            deep_res = dynamic_deep_explanation("Photosynthesis")
+            return {
+                "reply": deep_res,
+                "mode": "deep",
+                "suggestions": ["Quiz me on Photosynthesis 🎯", "Light vs Dark Reactions ⚡", "Visual & Table 📊", "Download PDF Notes 📄"]
+            }
+
+        deep_prompt = (
+            f"You are Sastra, an intelligent, empathetic, and masterclass AI learning educator for Capacity Connect.\n"
+            f"The learner {u_name} requested a DEEP EXPLANATION on: '{target_deep_topic}'.\n\n"
+            f"CRITICAL REQUIREMENTS — FOLLOW THIS EXACT 7-PART MASTERCLASS STRUCTURE:\n\n"
+            f"1. Warm Intro & Intuitive Analogy:\n"
+            f"   - Greet warmly: 'Hello and welcome! I am Sastra, your learning companion. It is wonderful to explore new concepts with you today. Let\\'s dive into...'\n"
+            f"   - Introduce '{target_deep_topic}' with a vivid everyday analogy.\n"
+            f"   - End this intro section with: 'Let\\'s break down this amazing process step-by-step with analogies, structured tables, and even a quick Python code simulation to make it super easy to understand.'\n\n"
+            f"---\n\n"
+            f"2. ❖ The Golden Equation / Architectural Principle of {target_deep_topic}:\n"
+            f"   - Plain text overview of the fundamental formula/principle.\n"
+            f"   - Exact equation / principle under: '📌 Recipe Equation:' (or '📌 Core Principle:').\n\n"
+            f"---\n\n"
+            f"3. 📊 Easy-to-Learn Structured Table:\n"
+            f"   - A neat 5-column Markdown table with these EXACT column headers:\n"
+            f"   | Concept / Component | Plain English Meaning | Intuitive Everyday Analogy | Practical Code / Syntax Example | Key Rule / Exam Tip |\n"
+            f"   | :--- | :--- | :--- | :--- | :--- |\n"
+            f"   - Include 4-5 rows of clear, pedagogical comparisons.\n\n"
+            f"---\n\n"
+            f"4. ❯ How the Process Works: Step-by-Step:\n"
+            f"   - Trace the flow across 4 to 5 numbered phases using bold headers:\n"
+            f"     ✦ 1. [Phase Name]\n"
+            f"     <explanation>\n\n"
+            f"     ✦ 2. [Phase Name]\n"
+            f"     <explanation>\n\n"
+            f"     ✦ 3. [Phase Name]\n"
+            f"     <explanation>\n\n"
+            f"     ✦ 4. [Phase Name]\n"
+            f"     <explanation>\n\n"
+            f"     ✦ 5. [Phase Name]\n"
+            f"     <explanation>\n\n"
+            f"---\n\n"
+            f"5. 💡 Simulating {target_deep_topic} in Python:\n"
+            f"   - A short introductory sentence.\n"
+            f"   - A clean, runnable Python script/class modeling the process with state checks, prints, and a working demo execution at the bottom.\n\n"
+            f"---\n\n"
+            f"6. ⚠️ Exam & Revision Tips:\n"
+            f"   - Exactly 3 high-yield tips using '◈ [Concept]: <tip>'\n\n"
+            f"7. Friendly Closing:\n"
+            f"   - Conclude warmly: 'How does this explanation feel to you? Would you like to explore [subtopic] in more detail, or perhaps try another topic next? I am right here to help you learn at your own pace!'\n\n"
+            f"STRICT RULES:\n"
+            f"- Separate each major section with horizontal dividers (`---`).\n"
+            f"- NEVER output raw markdown double asterisks (**).\n"
+            f"- Output the complete masterclass without truncating."
+        )
+
+        llm_reply = _llm_respond(deep_prompt, context, None, extra, "deep")
+        if llm_reply:
+            return {
+                "reply": llm_reply,
+                "mode": "deep",
+                "suggestions": [f"Quiz me on {target_deep_topic} 🎯", "Visual & Table 📊", "Explain simpler 🌿", "Download PDF Notes 📄"]
+            }
+
+        return {
+            "reply": dynamic_deep_explanation(target_deep_topic),
+            "mode": "deep",
+            "suggestions": [f"Quiz me on {target_deep_topic} 🎯", "Visual & Table 📊", "Explain simpler 🌿", "Download PDF Notes 📄"]
         }
 
     # ─────────────────────────────────────────────────────────────────────────────
