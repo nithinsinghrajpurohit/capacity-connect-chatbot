@@ -88,10 +88,14 @@ def extract_clean_concept_title(query):
         return None
     # Strip emojis
     text = re.sub(r"[\U00010000-\U0010ffff\u2600-\u27bf\u2300-\u23ff]", "", query).strip()
-    # Strip conversational wrappers and question templates
-    text = re.sub(r"^(?:i can you|can you|could you|please|kindly|tell me about|tell me|explain to me|explain|what is|what are|how does|how do i|teach me|guide to|deep dive into|deep explanation of|learn about|learn)\s+", "", text, flags=re.I).strip()
-    text = re.sub(r"^(?:the|a|an)\s+", "", text, flags=re.I).strip()
-    text = re.sub(r"^(?:complete|comprehensive|full)\s+", "", text, flags=re.I).strip()
+    # Strip conversational wrappers and question templates iteratively
+    wrapper_pattern = r"^(?:i can you|can you|could you|would you|please|kindly|tell me about|tell me|explain to me|explain|what is|what are|how does|how do i|teach me|guide to|deep dive into|deep explanation of|learn about|learn|about|show me)\s+"
+    prev = ""
+    while prev != text:
+        prev = text
+        text = re.sub(wrapper_pattern, "", text, flags=re.I).strip()
+        text = re.sub(r"^(?:the|a|an)\s+", "", text, flags=re.I).strip()
+        text = re.sub(r"^(?:complete|comprehensive|full)\s+", "", text, flags=re.I).strip()
     text = text.strip("'\" :;,.?!")
 
     # If the remaining text is trivial, a small talk greeting, or a conversational command, return None
@@ -1161,30 +1165,25 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
             gen = get_image_generator()
             img_res = gen.generate_image(clean_prompt)
 
-            llm_prompt = f"The learner {u_name} requested a visual illustration for: '{clean_prompt}'. Explain the core architecture and key components of this diagram in detail with structured bullet points and practical study guidance for their curriculum."
-            llm_expl = _llm_respond(llm_prompt, context, history, extra, "learn")
+            clean_title = extract_clean_concept_title(clean_prompt)
+            if not clean_title or len(clean_title.split()) > 4 or any(k in clean_title.lower() for k in ["image", "diagram", "visual", "roadmap", "photo", "all learning", "into one", "complete python", "if i see"]):
+                if "python" in clean_prompt.lower() or "python" in (active_topic or "").lower() or not active_topic:
+                    clean_title = "Python Complete Developer Roadmap"
+                else:
+                    clean_title = f"{active_topic.title()} Architecture"
 
-            if not llm_expl:
-                llm_expl = (
-                    f"✦ Visual Architecture Synthesized for: {clean_prompt.title()}\n\n"
-                    f"◈ Diagram Highlights:\n"
-                    f"• Visualizes component relationships, data flow boundaries, and operational lifecycles.\n"
-                    f"• Connects high-level abstractions to concrete underlying memory or execution pipelines.\n\n"
-                    f"💡 Study Tip: Review how each node interacts with the next. Click 'Download PDF' to save this visual study guide!"
-                )
-
-            # Avoid duplicate visual illustration headers
-            clean_expl = llm_expl.strip()
-            if clean_expl.startswith("✦ Visual Illustration Generated") or clean_expl.startswith("Visual Illustration"):
-                reply_text = clean_expl
-            else:
-                reply_text = f"✦ Visual Illustration Generated\n\n{clean_expl}"
+            reply_text = (
+                f"✦ {clean_title} — Visual Diagram Generated 🎨\n\n"
+                f"Here is your unified visual infographic mapping out the complete learning path, core architectural phases, and key milestones.\n\n"
+                f"💡 Ready to begin? Reply with 'Let\\'s start learning' or let me know which topic you'd like to explore first!"
+            )
+            reply_text = reply_text.replace("**", "")
 
             return {
                 "reply": reply_text,
                 "image": img_res.get("url"),
                 "mode": "image",
-                "suggestions": [f"Download PDF guide for {clean_prompt[:25]} 📄", f"Quiz me on {clean_prompt[:25]} 🎯", "Explain simpler 🌿", "Deep explanation 🔥"]
+                "suggestions": ["Let's start learning 🚀", "Explain Phase 1: Syntax 🌿", "Take a quiz 🎯", "Download PDF study guide 📄"]
             }
         except Exception as e:
             print(f"[Astra] Image generation trigger error: {e}")

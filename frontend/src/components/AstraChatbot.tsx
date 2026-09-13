@@ -441,29 +441,15 @@ export const AstraChatbot: React.FC<{
           textToSend
         );
 
-      let generatedImageUrl: string | undefined;
-
-      if (isImageGenRequest) {
-        setLoadingStatus('Generating high-definition visual diagram...');
-        try {
-          const imgRes = await fetchWithFallback('/api/image/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: textToSend, user_name: currentName }),
-          });
-          if (imgRes.ok) {
-            const imgData = await imgRes.json();
-            generatedImageUrl = imgData.url;
-          }
-        } catch (e) {
-          console.error('Image generation error:', e);
-        }
-      }
-
-      // 4. Standard Intelligent Chat / PDF Notes Request
       setLoadingStatus(
-        sentImage ? 'Performing multimodal vision reasoning...' : 'Sastra formulating answer...'
+        isImageGenRequest
+          ? 'Generating high-definition visual diagram...'
+          : sentImage
+          ? 'Performing multimodal vision reasoning...'
+          : 'Sastra formulating answer...'
       );
+
+      // Send to /api/chat with mode: 'image' when image requested
       const res = await fetchWithFallback('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -472,7 +458,7 @@ export const AstraChatbot: React.FC<{
           image: sentImage || undefined,
           file: sentDoc?.data || undefined,
           filename: sentDoc?.name || undefined,
-          mode: activeMode || undefined,
+          mode: isImageGenRequest ? 'image' : (activeMode || undefined),
           user_id: userProfile.id,
           user_name: currentName,
           session_id: sessionId,
@@ -482,11 +468,29 @@ export const AstraChatbot: React.FC<{
       if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
       const data = await res.json();
 
+      let botImage = data.image;
+      // Fallback: If image was requested but backend didn't return one in /api/chat, query /api/image/generate
+      if (isImageGenRequest && !botImage) {
+        try {
+          const imgRes = await fetchWithFallback('/api/image/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: textToSend, user_name: currentName }),
+          });
+          if (imgRes.ok) {
+            const imgData = await imgRes.json();
+            botImage = imgData.url;
+          }
+        } catch (e) {
+          console.error('Image generation fallback error:', e);
+        }
+      }
+
       const botMsg: Message = {
         id: `bot-${Date.now()}`,
         role: 'assistant',
         content: data.reply || '✦ I am ready to help you learn.',
-        image: generatedImageUrl || data.image,
+        image: botImage,
         mode: data.mode,
         suggestions: data.suggestions || [
           '📄 Download PDF Study Guide',
