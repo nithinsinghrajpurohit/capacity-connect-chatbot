@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toPng } from 'html-to-image';
 import {
   Send,
   Mic,
@@ -566,54 +567,80 @@ export const AstraChatbot: React.FC<{
       window.location.hostname === '[::1]' ||
       window.location.hostname.endsWith('.local'));
 
-  // Complete screenshot capture function for localhost debugging
-  const handleTakeScreenshot = async () => {
+  const chatThreadRef = useRef<HTMLDivElement>(null);
+  const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
+
+  // Complete screenshot capture of the entire conversation thread done with Sastra AI
+  const captureFullChatScreenshot = async (mode: 'attach' | 'download' = 'attach') => {
+    const el = chatThreadRef.current;
+    if (!el) {
+      alert('Chat thread container not found.');
+      return;
+    }
+
+    setIsCapturingScreenshot(true);
     try {
-      if (!navigator.mediaDevices?.getDisplayMedia) {
-        alert('Screen capture API is not supported in this browser. Please use Chrome, Edge, or Firefox on desktop.');
-        return;
+      // Save original container styles & scroll position
+      const originalHeight = el.style.height;
+      const originalMaxHeight = el.style.maxHeight;
+      const originalOverflow = el.style.overflow;
+      const prevScrollTop = el.scrollTop;
+
+      // Temporarily expand to entire scrollHeight so ALL conversation messages are fully rendered
+      const fullHeight = Math.max(el.scrollHeight, el.offsetHeight, 600);
+      const fullWidth = Math.max(el.scrollWidth, el.offsetWidth, 700);
+
+      el.style.height = `${fullHeight}px`;
+      el.style.maxHeight = 'none';
+      el.style.overflow = 'visible';
+
+      // Capture full thread with html-to-image (supports Tailwind v4 modern oklch colors natively)
+      let dataUrl = '';
+      try {
+        dataUrl = await toPng(el, {
+          cacheBust: true,
+          backgroundColor: '#fafbfc',
+          width: fullWidth,
+          height: fullHeight,
+          pixelRatio: 2, // High DPI for crisp text
+        });
+      } catch (innerErr) {
+        console.warn('First toPng pass failed, retrying with standard params...', innerErr);
+        dataUrl = await toPng(el, {
+          backgroundColor: '#fafbfc',
+        });
       }
-      // Trigger native screen/window/tab capture
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: 'browser' },
-      });
 
-      const video = document.createElement('video');
-      video.autoplay = true;
-      video.muted = true;
-      video.srcObject = stream;
+      // Restore original dimensions immediately
+      el.style.height = originalHeight;
+      el.style.maxHeight = originalMaxHeight;
+      el.style.overflow = originalOverflow;
+      el.scrollTop = prevScrollTop;
 
-      await new Promise<void>((resolve) => {
-        video.onloadedmetadata = () => {
-          video.play().then(() => resolve()).catch(() => resolve());
-        };
-      });
-
-      // Small delay to ensure the active frame is painted
-      await new Promise((r) => setTimeout(r, 200));
-
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth || window.innerWidth || 1280;
-      canvas.height = video.videoHeight || window.innerHeight || 720;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (!dataUrl) {
+        throw new Error('Screenshot generation produced empty image data.');
       }
 
-      // Stop all tracks so the browser sharing banner closes immediately
-      stream.getTracks().forEach((track) => track.stop());
-
-      const dataUrl = canvas.toDataURL('image/png');
-      setAttachedImage(dataUrl);
-
-      // Pre-fill prompt if user hasn't typed anything yet
-      if (!input.trim()) {
-        setInput('Here is a screenshot of what happened. Please inspect this, identify any errors or mistakes, and tell me how to fix them:');
+      if (mode === 'download') {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `sastra-complete-chat-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        setAttachedImage(dataUrl);
+        if (!input.trim()) {
+          setInput(
+            'Here is the complete screenshot of our full chat conversation. Please review what you explained above, identify any errors, inaccuracies, or mistakes you made, and explain the correct answers:'
+          );
+        }
       }
     } catch (err: any) {
-      if (err.name !== 'NotAllowedError' && err.message !== 'Permission denied') {
-        console.error('Screenshot capture failed:', err);
-      }
+      console.error('Failed to capture complete chat screenshot:', err);
+      alert('Could not capture full chat screenshot: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setIsCapturingScreenshot(false);
     }
   };
 
@@ -705,6 +732,39 @@ export const AstraChatbot: React.FC<{
                   </span>
                 </button>
 
+                {/* Localhost-Only Full Chat Screenshot Tool in Header */}
+                {isLocalhost && (
+                  <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-full text-amber-700 text-xs font-semibold shadow-2xs">
+                    <span className="text-[10px] uppercase tracking-wider text-amber-600 font-bold hidden md:inline">
+                      Localhost:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => captureFullChatScreenshot('attach')}
+                      disabled={isCapturingScreenshot}
+                      className="hover:text-amber-900 flex items-center gap-1 cursor-pointer transition-colors"
+                      title="📸 Capture complete chat history & attach to prompt to tell Sastra mistakes"
+                    >
+                      {isCapturingScreenshot ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                      ) : (
+                        <Camera className="w-3.5 h-3.5 text-amber-600" />
+                      )}
+                      <span className="text-[11px]">Full Chat Screenshot</span>
+                    </button>
+                    <span className="text-amber-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => captureFullChatScreenshot('download')}
+                      disabled={isCapturingScreenshot}
+                      className="hover:text-amber-900 flex items-center cursor-pointer transition-colors p-0.5"
+                      title="Download complete chat conversation as PNG image"
+                    >
+                      <FileDown className="w-3.5 h-3.5 text-amber-600" />
+                    </button>
+                  </div>
+                )}
+
                 <button
                   onClick={() => {
                     const saluteName = userProfile.full_name && userProfile.full_name !== 'Learner' ? ` ${userProfile.full_name}` : '';
@@ -765,8 +825,11 @@ export const AstraChatbot: React.FC<{
               })}
             </div>
 
-            {/* Messages Thread */}
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 bg-[#fafbfc]">
+            {/* Messages Thread (Scrollable container captured by html2canvas) */}
+            <div
+              ref={chatThreadRef}
+              className="flex-1 overflow-y-auto px-6 py-6 space-y-6 bg-[#fafbfc]"
+            >
               {messages.map((msg) => (
                 <motion.div
                   key={msg.id}
@@ -1103,17 +1166,22 @@ export const AstraChatbot: React.FC<{
                   <ImageIcon className="w-4 h-4" />
                 </button>
 
-                {/* Localhost-Only Complete Screenshot Debugger Button */}
+                {/* Localhost-Only Complete Chat Screenshot Button in Input Bar */}
                 {isLocalhost && (
                   <button
                     type="button"
-                    onClick={handleTakeScreenshot}
-                    className="p-2 text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 rounded-full transition-all cursor-pointer border border-indigo-200/60 shadow-xs flex items-center gap-1"
-                    title="📸 Take Complete Screenshot (Localhost Debugger: Capture screen to inspect mistakes/errors)"
+                    onClick={() => captureFullChatScreenshot('attach')}
+                    disabled={isCapturingScreenshot}
+                    className="p-2 text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 rounded-full transition-all cursor-pointer border border-amber-200/80 shadow-xs flex items-center gap-1 shrink-0"
+                    title="📸 Capture Complete Chat (Localhost Debugger: Takes screenshot of the entire conversation to report mistakes/errors to Sastra)"
                   >
-                    <Camera className="w-4 h-4" />
-                    <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider pr-1 hidden sm:inline">
-                      Snap
+                    {isCapturingScreenshot ? (
+                      <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4 text-amber-600" />
+                    )}
+                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider pr-1 hidden sm:inline">
+                      Chat Snap
                     </span>
                   </button>
                 )}
