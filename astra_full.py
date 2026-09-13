@@ -726,15 +726,94 @@ def synthesize_notes(topic_key, subtopic_key, depth="detailed"):
 
 def dynamic_study_notes(topic_title):
     clean_title = topic_title.strip().rstrip("?").replace("make notes on", "").replace("notes on", "").strip().title() or "Study Notes"
+    t_lower = clean_title.lower()
+
+    if "photo" in t_lower:
+        topics = [
+            ("Light Harvesting & Chlorophyll", "Capturing photons using thylakoid pigments", "Solar panels charging batteries", "photon = sunlight.absorb()", "Chlorophyll reflects green light, absorbing red/blue"),
+            ("Water Photolysis & Electron Transport", "Splitting water into oxygen, protons, and electrons", "Water purifier splitting H2O", "water.split() -> O2 + e-", "Releases oxygen as a byproduct for human respiration"),
+            ("ATP & NADPH Energy Generation", "Converting kinetic light into biochemical battery power", "Charging power banks for the night shift", "energy_bank.charge(ATP)", "These energy carriers fuel the Calvin cycle"),
+            ("The Calvin Cycle (Carbon Fixation)", "Synthesizing glucose from atmospheric CO2", "The master chef baking bread from raw flour", "calvin_cycle.synthesize(CO2)", "Takes place in the stroma and does not need direct sunlight"),
+            ("Starch Storage & Cellular Respiration", "Storing sugar for dark hours and cellular metabolism", "Pantry storage for rainy days", "plant.store_starch(glucose)", "Plants perform cellular respiration at night just like animals")
+        ]
+    elif any(k in t_lower for k in ("cloud", "devops", "aws", "docker")):
+        topics = [
+            ("Infrastructure as a Service (IaaS)", "Virtual compute and elastic storage on-demand", "Renting an apartment instead of buying land", "server = ec2.create_instance()", "Pay only for running instances"),
+            ("Containerization & Isolation", "Packaging code and dependencies into immutable images", "Shipping cargo containers across ships and trains", "docker run -p 80:80 app", "Containers share the host OS kernel for high efficiency"),
+            ("Automated CI/CD Pipelines", "Automating testing, building, and deployment", "Automated assembly line in a car factory", "pipeline.deploy_on_green()", "Fail fast with automated regression testing"),
+            ("Elastic Load Balancing & Auto-scaling", "Distributing incoming traffic across healthy nodes", "Bank lobby manager routing customers to open tellers", "scaler.scale_up_if(cpu > 80)", "Guarantees zero downtime under traffic spikes"),
+            ("Cloud Security & IAM", "Enforcing least-privilege identity and access control", "Security badge granting access only to your floor", "iam.enforce(least_privilege)", "Never hardcode access keys into repository source code")
+        ]
+    elif any(k in t_lower for k in ("python", "variable", "programming")):
+        topics = [
+            ("Variables & Memory Binding", "Named references pointing to values in RAM", "Labeled luggage tags on storage boxes", "user_age = 25", "Variables hold memory references rather than raw values"),
+            ("Core Data Types & Mutability", "Distinguishing between immutable and mutable objects", "Permanent ink versus erasable pencil boards", "my_list.append(10)", "Strings/tuples are immutable; lists/dictionaries are mutable"),
+            ("Control Flow & Conditionals", "Guiding program execution path using Boolean logic", "Traffic lights directing cars at intersections", "if score >= 90: grade = 'A'", "Conditions evaluate lazily from left to right"),
+            ("Functions & Modular Scoping", "Encapsulating reusable logic with explicit contracts", "Vending machine taking money and dispensing item", "def calculate_tax(amt): return amt * 0.18", "Functions isolate local scope from global side-effects"),
+            ("Exception Handling & Robustness", "Gracefully intercepting errors without crashing", "Safety nets beneath trapeze artists in a circus", "try: ... except Exception as e: ...", "Always catch specific exceptions rather than bare except")
+        ]
+    else:
+        topics = [
+            (f"{clean_title} Core Architecture", f"Foundational interface and configuration contracts of {clean_title}", "Architectural blueprint before construction", "system.init()", "Establish unambiguous boundaries"),
+            (f"{clean_title} Execution Workflow", f"Step-by-step pipeline transforming inputs to state", "Assembly line transforming parts to product", "engine.execute(state)", "Keep operations deterministic and idempotent"),
+            (f"{clean_title} Defensive Validation", "Boundary checking and precondition verification", "Airport security checkpoint inspecting luggage", "assert input.is_valid()", "Fail fast before initiating expensive operations"),
+            (f"{clean_title} Resource & Memory Management", "Handling state lifecycle and persistent storage", "Organized warehouse cataloging incoming inventory", "storage.persist(record)", "Release allocated resources promptly"),
+            (f"{clean_title} Production Best Practices", "Scalability, telemetry, and resilient deployment", "Regular vehicle maintenance ensuring smooth highway travel", "telemetry.log_metric()", "Maintain observability and automated testing")
+        ]
+
+    table_rows = []
+    topic_blocks = []
+    for idx, (t_name, t_meaning, t_analogy, t_code, t_rule) in enumerate(topics, 1):
+        table_rows.append(f"| {idx} | {t_name} | {t_meaning} | {t_analogy} | {t_rule} |")
+        topic_blocks.append(
+            f"✦ Topic {idx}: {t_name}\n\n"
+            f"• ◈ Plain English Explanation:\n"
+            f"{t_meaning}. This represents an essential pillar of {clean_title} that ensures systems remain organized, clear, and easy to maintain.\n\n"
+            f"• ❯ How It Works (Step-by-Step):\n"
+            f"1. Setup & Ingestion: Baseline inputs are received and checked against schema requirements.\n"
+            f"2. Core Processing: The mechanism executes the primary algorithmic transformation.\n"
+            f"3. Verification: Output states are verified for correctness and safety.\n"
+            f"4. Delivery: The finalized result is published or persisted for consumer access.\n\n"
+            f"• ❖ Relatable Everyday Analogy:\n"
+            f"{t_analogy}. When each step happens in its proper sequence, the entire system functions with effortless reliability.\n\n"
+            f"• 💡 Practical Code / Concrete Example:\n"
+            f"```python\n"
+            f"# Demonstration: {t_name}\n"
+            f"{t_code}\n"
+            f"```\n\n"
+            f"• ⚠️ Key Rule & Exam / Work Takeaway:\n"
+            f"{t_rule}."
+        )
+
+    table_md = (
+        "| Topic # | Topic / Concept Name | Plain English Meaning | Intuitive Everyday Analogy | Key Rule / Exam Tip |\n"
+        "| :--- | :--- | :--- | :--- | :--- |\n" +
+        "\n".join(table_rows)
+    )
+    topics_str = "\n\n---\n\n".join(topic_blocks)
+
     return (
-        f"# Study Notes — {clean_title}\n\n"
-        f"✦ Executive Summary\nComprehensive reference guide covering foundations, architecture, and practical application of {clean_title}.\n\n"
-        f"◈ Core Principles & Formal Definition\n• Primary Function: Provides structured capability for high-reliability software execution.\n• Theoretical Basis: Grounded in separation of concerns and deterministic state transitions.\n\n"
-        f"❖ Structural Components & Syntax Patterns\n• Declarative Specification: Clear, unambiguous declarations and interface contracts.\n• Operational Semantics: Step-by-step evaluation with defensive validation.\n\n"
-        f"📌 Key Rules & Best Practices\n• Maintain high cohesion and minimal coupling.\n• Document parameter assumptions and return contracts.\n• Write automated unit tests covering nominal and edge paths.\n\n"
-        f"⚠️ Common Mistakes to Avoid\n• Premature optimization before profiling bottlenecks.\n• Ignoring error conditions or swallowing exceptions silently.\n\n"
-        f"🎯 Active-Recall Review Questions\n1. What is the single most important purpose of {clean_title}?\n2. What is a primary risk when {clean_title} is improperly configured?\n\n"
-        f"💡 Click the 'Download PDF' button above to export these complete notes as an official PDF study guide."
+        f"# Study Notes & Complete Subject Guide — {clean_title} 📚\n\n"
+        f"1. 📖 Complete Overview & Curriculum Blueprint\n"
+        f"This complete study guide covers the end-to-end architecture, working mechanics, and practical examples for {clean_title}.\n"
+        f"Designed for clear understanding, every topic is explained step-by-step with intuitive analogies and high-yield exam takeaways.\n\n"
+        f"---\n\n"
+        f"2. 📊 Master Topic Index & Structured Comparison Table\n"
+        f"{table_md}\n\n"
+        f"---\n\n"
+        f"3. ❯ Step-by-Step Explanation for EVERY Topic\n\n"
+        f"{topics_str}\n\n"
+        f"---\n\n"
+        f"4. 📌 High-Yield Revision Summary\n"
+        f"• Comprehensive Scope: All {len(topics)} core topics analyzed step-by-step.\n"
+        f"• Intuitive Retention: Concepts anchored with everyday analogies for long-term memory.\n"
+        f"• Exam Readiness: Practical takeaways highlighted for tests and production work.\n\n"
+        f"---\n\n"
+        f"5. 🎯 Self-Assessment Concept Check\n"
+        f"1. What is the primary role of {topics[0][0]}?\n"
+        f"2. How does the analogy of '{topics[1][2]}' explain how it functions?\n"
+        f"3. What critical rule should be applied when implementing {topics[2][0]}?\n\n"
+        f"💡 Click 'Download PDF Study Guide 📄' below to export these complete notes into a printable PDF study guide!"
     )
 
 
@@ -1300,19 +1379,21 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
             doc_info = analyzer.extract_from_base64(file_data, filename=filename or "document.pdf")
             analysis_prompt = analyzer.build_analysis_prompt(doc_info, user_query=message, user_name=u_name)
 
-            llm_reply = _llm_respond(analysis_prompt, context, history, extra, "learn")
+            llm_reply = _llm_respond(analysis_prompt, context, history, extra, "notes")
             if not llm_reply:
-                doc_preview = doc_info.get("text", "")[:400]
-                llm_reply = (f"✦ Document Analysis Completed ({doc_info.get('type', 'doc').upper()} - {doc_info.get('pages', 1)} pages)\n\n"
-                             f"◈ Document Content Preview:\n{doc_preview}...\n\n"
-                             f"💡 Key Takeaways:\n1. Structured review of {doc_info.get('type')}\n2. Use this content to reinforce your coursework.")
+                llm_reply = analyzer.generate_rule_based_breakdown(doc_info, user_name=u_name)
 
             return {
                 "reply": llm_reply,
-                "mode": "document_analysis",
+                "mode": "notes",
                 "doc_type": doc_info.get("type"),
                 "pages": doc_info.get("pages"),
-                "suggestions": ["📄 Download PDF study summary of this document", "Quiz me on this document 🎯", "Explain key formulas & code"]
+                "suggestions": [
+                    "Download PDF Study Guide 📄",
+                    "Quiz me on this document 🎯",
+                    "Flashcards for these notes 🎴",
+                    "Explain Topic 1 simpler 🌿"
+                ]
             }
         except Exception as e:
             print(f"[Astra] Document analysis error: {e}")
@@ -1542,13 +1623,48 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     # ─────────────────────────────────────────────────────────────────────────────
     if mode == "notes":
         target_notes_topic = concept_query if is_pure_notes else message
-        llm_reply = _llm_respond(f"Generate comprehensive, structured study notes suitable for a printable PDF study guide on: {target_notes_topic}", context, history, extra, mode)
+        clean_notes_topic = extract_clean_concept_title(target_notes_topic) or target_notes_topic.strip().rstrip("?").title() or "Core Subject"
+        clean_notes_topic = re.sub(r"\b(?:study notes|notes|generate pdf|download pdf|pdf|study guide|guide)\s*(?:on|for|about)?\s*", "", clean_notes_topic, flags=re.I).strip() or "Core Subject"
+
+        notes_prompt = (
+            f"You are Sastra, an elite AI study guide architect for Capacity Connect.\n"
+            f"The learner {u_name} requested COMPLETE STUDY NOTES on: '{clean_notes_topic}'.\n\n"
+            f"CRITICAL REQUIREMENTS — STUDY COMPLETE SUBJECT & EXPLAIN EVERY TOPIC STEP-BY-STEP:\n"
+            f"Provide an exhaustive, step-by-step pedagogical study guide breaking down every essential topic of {clean_notes_topic} in a simple, easy-to-understand way:\n\n"
+            f"1. 📖 Complete Overview & Curriculum Blueprint:\n"
+            f"   - 2-3 accessible sentences defining what {clean_notes_topic} is, why it matters, and the full scope covered.\n\n"
+            f"---\n\n"
+            f"2. 📊 Master Topic Index & Structured Comparison Table:\n"
+            f"   - A comprehensive 5-column Markdown Table summarizing EVERY topic covered:\n"
+            f"   | Topic # | Topic / Concept Name | Plain English Meaning | Intuitive Everyday Analogy | Key Rule / Exam Tip |\n"
+            f"   | :--- | :--- | :--- | :--- | :--- |\n\n"
+            f"---\n\n"
+            f"3. ❯ Step-by-Step Explanation for EVERY Topic (Simple & Easy for Understanding):\n"
+            f"   For 4 to 6 core topics and mechanisms of {clean_notes_topic}, provide a dedicated breakdown:\n"
+            f"   ✦ Topic [Number]: [Topic Name]\n"
+            f"   • ◈ Plain English Explanation: Accessible, intuitive definition without confusing jargon.\n"
+            f"   • ❯ How It Works (Step-by-Step): Numbered steps (1, 2, 3...) walking through the mechanism clearly.\n"
+            f"   • ❖ Relatable Everyday Analogy: Mental model from daily life.\n"
+            f"   • 💡 Practical Code / Formula / Worked Example: Clean code snippet or practical application.\n"
+            f"   • ⚠️ Key Rule & Exam / Work Takeaway: What learners must remember for exams and production.\n\n"
+            f"---\n\n"
+            f"4. 📌 High-Yield Revision Summary:\n"
+            f"   - Bullet points summarizing the most critical takeaways across the whole subject for fast recall.\n\n"
+            f"---\n\n"
+            f"5. 🎯 Self-Assessment Concept Check:\n"
+            f"   - 3 targeted questions to verify understanding.\n\n"
+            f"STRICT RULES:\n"
+            f"- Separate each major section with clean horizontal dividers (`---`).\n"
+            f"- NEVER output raw double asterisks (**).\n"
+            f"- Ensure explanations are simple, easy, and engaging."
+        )
+        llm_reply = _llm_respond(notes_prompt, context, history, extra, mode)
         if llm_reply:
             return {"reply": llm_reply, "mode": mode, "suggestions": ["Download PDF Study Guide 📄", "Quiz me on these notes 🎯", "Flashcards 🎴", "Explain simpler 🌿"]}
         if tk:
             notes_text = synthesize_notes(tk, sk)
             return {"reply": notes_text, "mode": mode, "suggestions": ["Download PDF Study Guide 📄", "Quiz me on these notes 🎯", "Flashcards 🎴", "Explain simpler 🌿"]}
-        notes_text = dynamic_study_notes(target_notes_topic)
+        notes_text = dynamic_study_notes(clean_notes_topic)
         return {"reply": notes_text, "mode": mode, "suggestions": ["Download PDF Study Guide 📄", "Quiz me on these notes 🎯", "Flashcards 🎴", "Explain simpler 🌿"]}
 
     # ─────────────────────────────────────────────────────────────────────────────

@@ -49,7 +49,7 @@ const MODES = [
   { id: 'learn', label: 'Learn', icon: BookOpen, desc: 'Quick definition & example (less content)' },
   { id: 'deep', label: 'Deep Explanation', icon: Sparkles, desc: 'Comprehensive breakdown, table & code' },
   { id: 'image', label: 'Visual & Table', icon: TableIcon, desc: 'Vector Concept Diagrams & Tables' },
-  { id: 'notes', label: 'Study Notes & PDF', icon: FileText, desc: 'Synthesize & PDF Export' },
+  { id: 'notes', label: 'Study Notes & PDF', icon: FileText, desc: 'Complete PDF study & step-by-step notes' },
   { id: 'socratic', label: 'Socratic', icon: HelpCircle, desc: 'Guiding dialogue' },
   { id: 'quiz', label: 'Quiz', icon: CheckCircle2, desc: 'Quick concept check (simple & direct)' },
   { id: 'code', label: 'Code Debug', icon: Code2, desc: 'Analysis & fixes' },
@@ -548,9 +548,11 @@ export const AstraChatbot: React.FC<{
     setLoading(true);
     setLoadingStatus(
       sentDoc
-        ? `Sastra analyzing ${sentDoc.name}...`
+        ? `Sastra studying complete PDF (${sentDoc.name}) & explaining all topics step-by-step...`
         : sentImage
         ? 'Performing multimodal vision reasoning...'
+        : activeMode === 'notes'
+        ? 'Synthesizing complete step-by-step study notes & PDF guide...'
         : 'Sastra thinking...'
     );
 
@@ -1307,14 +1309,20 @@ export const AstraChatbot: React.FC<{
             <div className="p-4 bg-white border-t border-slate-100 flex flex-col gap-2">
               {/* Document Preview if attached */}
               {attachedDoc && (
-                <div className="relative inline-flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-2xl border border-emerald-200 max-w-xs">
+                <div className="relative inline-flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-2xl border border-emerald-200 max-w-sm shadow-2xs">
                   <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span className="text-xs text-emerald-900 truncate font-medium">
-                    {attachedDoc.name}
-                  </span>
+                  <div className="flex flex-col min-w-0 pr-1">
+                    <span className="text-xs text-emerald-900 truncate font-semibold">
+                      📄 {attachedDoc.name}
+                    </span>
+                    <span className="text-[10px] text-emerald-700 truncate font-medium">
+                      Study Complete PDF & Step-by-Step Breakdown
+                    </span>
+                  </div>
                   <button
                     onClick={() => setAttachedDoc(null)}
                     className="p-1 rounded-full hover:bg-emerald-200 text-emerald-500 hover:text-emerald-800 ml-auto cursor-pointer"
+                    title="Remove document"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -1447,7 +1455,7 @@ export const AstraChatbot: React.FC<{
                   }}
                   placeholder={
                     attachedDoc
-                      ? `Ask a question about ${attachedDoc.name}...`
+                      ? `Study complete PDF & explain every topic step-by-step: ${attachedDoc.name}...`
                       : attachedImage
                       ? 'Ask a question or explain this image / diagram...'
                       : activeMode === 'learn'
@@ -1459,7 +1467,7 @@ export const AstraChatbot: React.FC<{
                       : activeMode === 'quiz'
                       ? 'Enter a topic for a quick quiz (e.g. "Cloud Computing", "Python")...'
                       : activeMode === 'notes'
-                      ? 'Topic to synthesize into downloadable PDF study notes...'
+                      ? 'Upload PDF or enter topic for complete step-by-step study notes & PDF export...'
                       : activeMode
                       ? `Ask Sastra (${activeMode} mode)...`
                       : 'Ask anything, generate PDF guides, upload documents, or test knowledge...'
