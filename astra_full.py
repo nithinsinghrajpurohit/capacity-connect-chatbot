@@ -734,46 +734,31 @@ def dynamic_study_notes(topic_title):
 def dynamic_easy_learn(topic_title):
     clean_title = topic_title.strip().rstrip("?").replace("what is", "").replace("explain", "").strip().title() or "Concept"
     return (
-        f"✦ {clean_title} — Easy Learning Guide & Concept Table 📊\n\n"
-        f"◈ 1. Core Definition:\n"
-        f"{clean_title} is a fundamental concept used to store, organize, and execute data or logic reliably in modern software.\n\n"
-        f"◈ 2. Concept Summary Table:\n"
-        f"| Feature / Element | What It Means (Plain English) | Everyday Intuition | Practical Syntax Example | Key Takeaway |\n"
-        f"| :--- | :--- | :--- | :--- | :--- |\n"
-        f"| **Core Concept** | Foundation mechanism of {clean_title} | Labeled workspace container | `item = 'Data'` | Define once, reuse everywhere |\n"
-        f"| **Execution** | Deterministic processing of logic | Assembly line operation | `result = process(item)` | Avoid redundant calculations |\n"
-        f"| **Validation** | Guarantees correctness & safety | Quality inspection checkpoint | `assert item is not None` | Catch bugs before runtime |\n"
-        f"| **Best Practice** | High maintainability & readability | Well-organized office records | Clear naming conventions | Code for humans to read |\n\n"
-        f"◈ 3. Practical Code Example:\n"
+        f"✦ {clean_title}\n\n"
+        f"◈ Definition:\n"
+        f"{clean_title} is a core mechanism used to store, organize, or process logic and data reliably in computer systems.\n\n"
+        f"❖ Example:\n"
         f"```python\n"
-        f"# Basic practical example of {clean_title}\n"
-        f"value = 42\n"
-        f"print(f'{clean_title} in action: {{value}}')\n"
-        f"```\n\n"
-        f"💡 Key Takeaway: Review the table above for quick revision, then take a quiz or export printable study notes!"
+        f"# Example of {clean_title}\n"
+        f"data = \"{clean_title} Example\"\n"
+        f"print(data)\n"
+        f"```"
     )
 
 
 def teach_topic_concise(topic_key, subtopic_key):
-    """Concise definition + structured table + practical example for Learning Mode."""
+    """Concise definition + example for Learn Mode (Less content)."""
     topic_data = base.TOPIC_KNOWLEDGE.get(topic_key)
     if not topic_data:
         return None
     subtopic = topic_data["topics"].get(subtopic_key) or list(topic_data["topics"].values())[0]
-    out = [
-        f"✦ {subtopic['title']} — Easy Learning Guide & Concept Table 📊\n",
-        f"◈ 1. Core Definition:\n{subtopic['what']}\n\n",
-        f"◈ 2. Concept Summary Table:\n",
-        f"| Feature / Dimension | Details |\n",
-        f"| :--- | :--- |\n",
-        f"| **Topic** | {subtopic['title']} |\n",
-        f"| **Everyday Intuition** | {subtopic['intuition']} |\n",
-        f"| **Key Principle** | Master fundamental syntax before advancing to complex workflows |\n",
-        f"| **Best Practice** | Write readable code with clear variable and function identifiers |\n\n",
-        f"◈ 3. Practical Code Example:\n{subtopic['example']}\n\n",
-        "💡 Key Takeaway: Review the table above for quick revision, then test your understanding with an interactive quiz or study notes!"
-    ]
-    return "\n".join(out)
+    return (
+        f"✦ {subtopic['title']}\n\n"
+        f"◈ Definition:\n"
+        f"{subtopic['what']}\n\n"
+        f"❖ Example:\n"
+        f"{subtopic['example']}"
+    )
 
 
 TOPIC_MCQ_QUESTIONS = {
@@ -946,7 +931,7 @@ def _llm_respond(message, context, history, page_ctx, mode, image_data=None):
             cid = context["enrollments"][0].get("course_id")
 
         rag_ctx = get_rag_context(message or "general", course_id=cid, top_k=2)
-        sys_prompt = build_system_prompt(context, page_ctx, rag_context=rag_ctx)
+        sys_prompt = build_system_prompt(context, page_ctx, rag_context=rag_ctx, mode=mode)
 
         reply = adapter.generate(sys_prompt, message, history, image_data=image_data)
         if reply and reply.strip():
@@ -1090,7 +1075,9 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
         concept_query = active_topic
 
     mode = detect_mode(message, explicit_mode)
-    if is_pure_quiz:
+    if explicit_mode in MODES:
+        mode = explicit_mode
+    elif is_pure_quiz:
         mode = "quiz"
     elif is_pure_notes:
         mode = "notes"
@@ -1212,8 +1199,11 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
         r"^(?:make it|remix|style|theme:?)\s+(?:photorealistic|cyberpunk|3d|anime|ghibli|pixar|cinematic|oil painting|watercolor)",
         r"^(?:photorealistic|cyberpunk neon|3d pixar|studio ghibli|anime / manga)\b"
     ]
-    is_remix_request = bool(re.search(r"\b(photorealistic|cyberpunk|neon|3d pixar|anime|ghibli|pixar|cinematic|oil painting|watercolor)\b", message, re.I)) and any(k in message.lower() for k in ("make it", "theme", "style", "animation"))
-    is_img_req = mode == "image" or explicit_mode in ("image", "diagram") or is_remix_request or any(re.search(pat, message.strip(), re.IGNORECASE) for pat in img_triggers)
+    is_img_req = (
+        explicit_mode != "learn" and (
+            mode == "image" or explicit_mode in ("image", "diagram") or is_remix_request or any(re.search(pat, message.strip(), re.IGNORECASE) for pat in img_triggers)
+        )
+    ) or (message.strip().startswith("@image") or message.strip().startswith("@create image"))
 
     if is_img_req:
         try:
@@ -1567,51 +1557,48 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
         }
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # ── 9. Learn Mode (Intelligent Adaptive Tutor)
+    # ── 9. Learn Mode (Concise Definition + Practical Example — Less Content)
     # ─────────────────────────────────────────────────────────────────────────────
     if mode == "learn" or explicit_mode == "learn":
         clean_concept = extract_clean_concept_title(concept_query if is_pure_simpler else message)
+        target_learn_topic = clean_concept or message.strip().rstrip("?").title() or "Core Concept"
 
-        # If user explicitly asked for a single isolated concept or clicked "Explain simpler":
-        if clean_concept and (explicit_mode == "learn" or is_pure_simpler or tk):
-            target_learn_topic = clean_concept
-            learn_prompt = (
-                f"You are in LEARNING MODE for Capacity Connect. Provide a clear, intuitive, and easy-to-learn explanation of: '{target_learn_topic}'.\n\n"
-                f"CRITICAL REQUIREMENTS FOR EASY LEARNING:\n"
-                f"1. A neat 1-2 sentence definition and intuitive analogy.\n"
-                f"2. A neat, structured Markdown Table summarizing the core components, intuition, syntax/example, and key takeaways so the learner can learn easily at a glance:\n"
-                f"| Concept / Feature | What It Means (Plain English) | Everyday Intuition | Code / Syntax Example | Key Takeaway |\n"
-                f"| :--- | :--- | :--- | :--- | :--- |\n"
-                f"3. A concise, practical 3-5 line code snippet showing realistic usage.\n"
-                f"4. 1 single sentence summarizing the key takeaway.\n"
-                f"Do NOT output raw markdown double asterisks (**)."
-            )
-            llm_reply = _llm_respond(learn_prompt, context, history, extra, "learn")
-            if llm_reply:
-                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain in a comparison table 📊", "Explain step-by-step 🌿"]}
-            if tk:
-                txt = teach_topic_concise(tk, sk)
-                return {"reply": txt, "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain in a comparison table 📊", "Explain step-by-step 🌿"]}
-            return {"reply": dynamic_easy_learn(target_learn_topic), "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain in a comparison table 📊", "Explain step-by-step 🌿"]}
-        else:
-            # Fluent, natural conversational tutor response for open-ended queries, comparisons, and general discussions
-            chat_prompt = (
-                f"You are Sastra, an intelligent, empathetic AI learning companion for Capacity Connect. "
-                f"Answer the learner {u_name}'s message conversationally, clearly, and pedagogically:\n\n"
-                f"User Message: '{message}'\n\n"
-                f"CRITICAL INSTRUCTIONS:\n"
-                f"• Whenever explaining concepts, topics, mechanisms, or comparisons, ALWAYS include a neat, structured Markdown Table so the learner can easily understand and review key points at a glance.\n"
-                f"• Provide practical code snippets and clear step-by-step guidance.\n"
-                f"• Use clean formatting with structured points (✦, ◈, ❯, ❖, 📌, 💡).\n"
-                f"• NEVER output raw markdown double asterisks (**)."
-            )
-            llm_reply = _llm_respond(chat_prompt, context, history, extra, "learn")
-            if llm_reply:
-                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Explain simpler in table 📊", "Quiz me & my friends 🎯", "Download PDF notes 📄", "Comparison Table 📋"]}
-            if tk:
-                txt = teach_topic_concise(tk, sk)
-                return {"reply": txt, "mode": "learn", "suggestions": suggestions_for("learn", tk)}
-            return {"reply": dynamic_easy_learn(clean_concept or "Core Programming Concept"), "mode": "learn", "suggestions": suggestions_for("learn", tk)}
+        # Concise prompt strictly requiring LESS CONTENT (Definition + Example):
+        learn_prompt = (
+            f"You are Sastra in LEARN MODE for Capacity Connect. Provide a concise, bite-sized explanation of: '{target_learn_topic}'.\n\n"
+            f"CRITICAL REQUIREMENT — LESS CONTENT (DEFINITION + EXAMPLE ONLY):\n"
+            f"Provide ONLY two brief sections:\n"
+            f"1. ◈ Definition: 1 to 2 clear, accessible sentences defining what '{target_learn_topic}' is in plain English.\n"
+            f"2. ❖ Example: One concise, realistic practical example (or a clean 3-5 line code snippet if technical/programming).\n\n"
+            f"STRICT RULES:\n"
+            f"- KEEP IT SHORT (less content, under 60 words total). No long essays, no multiple paragraphs, no fluff.\n"
+            f"- Do NOT output any greeting, pleasantry, or conversational filler. Start immediately with ✦ {target_learn_topic}.\n"
+            f"- Do NOT generate markdown tables in Learn Mode.\n"
+            f"- Format:\n"
+            f"✦ {target_learn_topic}\n\n"
+            f"◈ Definition:\n<1-2 sentences>\n\n"
+            f"❖ Example:\n<concise example or code snippet>\n\n"
+            f"Do NOT output raw markdown double asterisks (**)."
+        )
+        llm_reply = _llm_respond(learn_prompt, context, None, extra, "learn")
+        if llm_reply:
+            return {
+                "reply": llm_reply,
+                "mode": "learn",
+                "suggestions": ["Quiz me on this 🎯", "Visual & Table 📊", "Deep Dive 🔍", "Download PDF Notes 📄"]
+            }
+        if tk:
+            txt = teach_topic_concise(tk, sk)
+            return {
+                "reply": txt,
+                "mode": "learn",
+                "suggestions": ["Quiz me on this 🎯", "Visual & Table 📊", "Deep Dive 🔍", "Download PDF Notes 📄"]
+            }
+        return {
+            "reply": dynamic_easy_learn(target_learn_topic),
+            "mode": "learn",
+            "suggestions": ["Quiz me on this 🎯", "Visual & Table 📊", "Deep Dive 🔍", "Download PDF Notes 📄"]
+        }
 
     # ─────────────────────────────────────────────────────────────────────────────
     # ── Fallback Handling for Unmatched Queries

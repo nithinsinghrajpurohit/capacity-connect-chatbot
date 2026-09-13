@@ -46,7 +46,7 @@ interface Message {
 }
 
 const MODES = [
-  { id: 'learn', label: 'Learn', icon: BookOpen, desc: 'Adaptive tutoring' },
+  { id: 'learn', label: 'Learn', icon: BookOpen, desc: 'Quick definition & example (less content)' },
   { id: 'image', label: 'Visual & Table', icon: TableIcon, desc: 'Vector Concept Diagrams & Tables' },
   { id: 'notes', label: 'Study Notes & PDF', icon: FileText, desc: 'Synthesize & PDF Export' },
   { id: 'socratic', label: 'Socratic', icon: HelpCircle, desc: 'Guiding dialogue' },
@@ -1447,6 +1447,8 @@ export const AstraChatbot: React.FC<{
                       ? `Ask a question about ${attachedDoc.name}...`
                       : attachedImage
                       ? 'Ask a question or explain this image / diagram...'
+                      : activeMode === 'learn'
+                      ? 'Enter a topic for quick definition & example (e.g. "Photosynthesis", "Variables")...'
                       : activeMode === 'image'
                       ? 'Prompt a diagram to draw (e.g. "Draw a diagram of Photosynthesis")...'
                       : activeMode === 'notes'

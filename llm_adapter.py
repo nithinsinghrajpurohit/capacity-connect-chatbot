@@ -234,14 +234,17 @@ class GeminiAdapter(LLMAdapter):
                 return self.fallback_adapter.generate(system_prompt, user_message, history, image_data, audio_data)
             return None
         
-        sys_inst = (
-            f"{system_prompt}\n\n"
-            "Respond as Sastra AI, an intelligent, empathetic, and highly capable learning companion for Capacity Connect. "
-            "Explain concepts simply, clearly, and fluently — just like ChatGPT and Google Gemini. "
-            "When explaining concepts like Deep Learning or Artificial Intelligence, provide natural, intuitive, and flowing explanations with relatable real-world analogies, concise practical code when helpful, and zero fluff. "
-            "If an image is provided, examine it thoroughly, identify all shapes, diagrams, text, code snippets, questions, or formulas, and explain them accurately and in detail. "
-            "NEVER output raw markdown double asterisks (**); instead use clean formatting with elegant bullet points and symbols (✦, ◈, ❯, ❖, 📌, ⚠️, 🎯, 💡)."
-        )
+        if "LEARN MODE GUIDELINES" in system_prompt:
+            sys_inst = system_prompt
+        else:
+            sys_inst = (
+                f"{system_prompt}\n\n"
+                "Respond as Sastra AI, an intelligent, empathetic, and highly capable learning companion for Capacity Connect. "
+                "Explain concepts simply, clearly, and fluently — just like ChatGPT and Google Gemini. "
+                "When explaining concepts like Deep Learning or Artificial Intelligence, provide natural, intuitive, and flowing explanations with relatable real-world analogies, concise practical code when helpful, and zero fluff. "
+                "If an image is provided, examine it thoroughly, identify all shapes, diagrams, text, code snippets, questions, or formulas, and explain them accurately and in detail. "
+                "NEVER output raw markdown double asterisks (**); instead use clean formatting with elegant bullet points and symbols (✦, ◈, ❯, ❖, 📌, ⚠️, 🎯, 💡)."
+            )
 
         candidate_models = [self.preferred_model] + [m for m in self.MODELS if m != self.preferred_model]
         
