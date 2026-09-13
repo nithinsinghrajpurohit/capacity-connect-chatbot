@@ -9,6 +9,7 @@ import random
 import re
 from database import get_db
 import astra_engine as base
+from image_generator import get_image_generator
 # LLM integration — graceful fallback if not configured
 try:
     from llm_adapter import get_adapter, RuleBasedAdapter
@@ -19,7 +20,13 @@ except ImportError:
     _llm = None
     _llm_available = False
 MODES = ["learn", "socratic", "quiz", "revise", "notes", "path", "code", "math", "project", "research", "image"]
-IMAGE_TRIGGERS = ["create image", "generate image", "draw image", "diagram of", "visual of", "illustration", "visual roadmap", "show image", "@image", "@create image", "draw a", "create a visual", "render image"]
+IMAGE_TRIGGERS = [
+    "create image", "generate image", "draw image", "diagram of", "visual of", "illustration", 
+    "visual roadmap", "show image", "@image", "@create image", "draw a", "create a visual", 
+    "render image", "with visual", "in the visual", "visual and table", "visual diagram", 
+    "concept visual", "show visual", "give visual", "table and visual", "visual representation",
+    "draw diagram", "show diagram", "diagram", "draw"
+]
 QUIZ_TRIGGERS = ["quiz me", "quiz", "take a quiz", "test my knowledge", "test me", "practice questions", "mcq", "knowledge check", "assessment", "question on", "ask a question"]
 SOCRATIC_TRIGGERS = ["quiz me step by step", "ask me guiding", "socratic", "don't tell me the answer",
                      "let me figure", "guide me", "hint"]
@@ -727,26 +734,44 @@ def dynamic_study_notes(topic_title):
 def dynamic_easy_learn(topic_title):
     clean_title = topic_title.strip().rstrip("?").replace("what is", "").replace("explain", "").strip().title() or "Concept"
     return (
-        f"✦ {clean_title} — Quick Learning Guide\n\n"
-        f"◈ Definition:\n{clean_title} is a fundamental concept used to store, organize, and execute data or logic reliably in software.\n\n"
-        f"❯ Everyday Intuition:\nThink of {clean_title} like a clearly labeled container in your workspace: you define it once, and reuse it whenever needed without repeating boilerplate code.\n\n"
-        f"❖ Code Example:\n```python\n# Basic practical example of {clean_title}\nvalue = 42\nprint(f'{clean_title} in action: {value}')\n```\n\n"
-        f"💡 Key Takeaway: Master this definition and syntax first, then test your understanding with an interactive quiz or study notes!"
+        f"✦ {clean_title} — Easy Learning Guide & Concept Table 📊\n\n"
+        f"◈ 1. Core Definition:\n"
+        f"{clean_title} is a fundamental concept used to store, organize, and execute data or logic reliably in modern software.\n\n"
+        f"◈ 2. Concept Summary Table:\n"
+        f"| Feature / Element | What It Means (Plain English) | Everyday Intuition | Practical Syntax Example | Key Takeaway |\n"
+        f"| :--- | :--- | :--- | :--- | :--- |\n"
+        f"| **Core Concept** | Foundation mechanism of {clean_title} | Labeled workspace container | `item = 'Data'` | Define once, reuse everywhere |\n"
+        f"| **Execution** | Deterministic processing of logic | Assembly line operation | `result = process(item)` | Avoid redundant calculations |\n"
+        f"| **Validation** | Guarantees correctness & safety | Quality inspection checkpoint | `assert item is not None` | Catch bugs before runtime |\n"
+        f"| **Best Practice** | High maintainability & readability | Well-organized office records | Clear naming conventions | Code for humans to read |\n\n"
+        f"◈ 3. Practical Code Example:\n"
+        f"```python\n"
+        f"# Basic practical example of {clean_title}\n"
+        f"value = 42\n"
+        f"print(f'{clean_title} in action: {{value}}')\n"
+        f"```\n\n"
+        f"💡 Key Takeaway: Review the table above for quick revision, then take a quiz or export printable study notes!"
     )
 
 
 def teach_topic_concise(topic_key, subtopic_key):
-    """Concise definition + practical example for Learning Mode."""
+    """Concise definition + structured table + practical example for Learning Mode."""
     topic_data = base.TOPIC_KNOWLEDGE.get(topic_key)
     if not topic_data:
         return None
     subtopic = topic_data["topics"].get(subtopic_key) or list(topic_data["topics"].values())[0]
     out = [
-        f"✦ {subtopic['title']} — Quick Learning Guide\n",
-        f"◈ Definition:\n{subtopic['what']}\n",
-        f"❯ Everyday Intuition:\n{subtopic['intuition']}\n",
-        f"❖ Code Example:\n{subtopic['example']}\n",
-        "💡 Key Takeaway: Master this definition and syntax first, then test your understanding with an interactive quiz or study notes!"
+        f"✦ {subtopic['title']} — Easy Learning Guide & Concept Table 📊\n",
+        f"◈ 1. Core Definition:\n{subtopic['what']}\n\n",
+        f"◈ 2. Concept Summary Table:\n",
+        f"| Feature / Dimension | Details |\n",
+        f"| :--- | :--- |\n",
+        f"| **Topic** | {subtopic['title']} |\n",
+        f"| **Everyday Intuition** | {subtopic['intuition']} |\n",
+        f"| **Key Principle** | Master fundamental syntax before advancing to complex workflows |\n",
+        f"| **Best Practice** | Write readable code with clear variable and function identifiers |\n\n",
+        f"◈ 3. Practical Code Example:\n{subtopic['example']}\n\n",
+        "💡 Key Takeaway: Review the table above for quick revision, then test your understanding with an interactive quiz or study notes!"
     ]
     return "\n".join(out)
 
@@ -1178,9 +1203,12 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
 
     # ── Image Generation / Diagram Synthesis Mode ──
     img_triggers = [
-        r"^@?(?:create|generate|show|draw|make|render)\s+(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic|picture|wallpaper)",
+        r"^@?(?:create|generate|show|draw|make|render|provide|display)\s+(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic|picture|wallpaper)",
         r"^@?(?:image|diagram|illustrate|visualize)\b",
-        r"\b(?:generate|create|draw)\s+(?:an?\s+)?(?:image|diagram|visual)\s+(?:of|for|about)\b",
+        r"\b(?:in the visual|in visual|with visual|show visual|give visual|give a visual|visual table|table visual|concept visual)\b",
+        r"\b(?:generate|create|draw|show|display|provide)\s+(?:an?\s+)?(?:image|diagram|visual|picture|art)\s*(?:of|for|about)?\b",
+        r"\b(?:visual|diagram|infographic)\s+(?:of|for|about|with|showing)?\b",
+        r"\b(?:concept art|3d concept art|draw a picture|draw picture)\b",
         r"^(?:make it|remix|style|theme:?)\s+(?:photorealistic|cyberpunk|3d|anime|ghibli|pixar|cinematic|oil painting|watercolor)",
         r"^(?:photorealistic|cyberpunk neon|3d pixar|studio ghibli|anime / manga)\b"
     ]
@@ -1189,8 +1217,8 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
 
     if is_img_req:
         try:
-            from image_generator import get_image_generator
-            clean_prompt = re.sub(r"^@?(?:create|generate|show|draw|make|render|image|diagram|illustrate|visualize)\s*(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic|picture|wallpaper)?\s*(?:of|for|about|:)?\s*", "", message.strip(), flags=re.IGNORECASE).strip()
+            clean_prompt = re.sub(r"^@?(?:in the visual,?\s*|in visual,?\s*|with visual,?\s*|show me a visual of\s*|give me a visual of\s*|create|generate|show|draw|make|render|image|diagram|illustrate|visualize)\s*(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic|picture|wallpaper|table|neat explanation)?\s*(?:of|for|about|with|contains|containing|:)?\s*", "", message.strip(), flags=re.IGNORECASE).strip()
+            clean_prompt = re.sub(r"\b(?:the image should contains?|contains? table and neat explanation of|show a table and neat explanation of|with a table and explanation of|with table and explanation)\b", "", clean_prompt, flags=re.IGNORECASE).strip()
 
             # Handle style remixing from previous conversation
             is_remixed = False
@@ -1216,18 +1244,59 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
                     clean_prompt = f"{base_concept}, Studio Ghibli anime style, vibrant lush watercolor background, beautiful hand-drawn art"
                     is_remixed = True
 
+            # If prompt asks for concept art / 3D art or picture:
+            is_concept_art = any(k in message.lower() for k in ("concept art", "3d art", "picture", "photo", "creative image", "artwork", "draw a picture", "draw picture"))
+            # ALWAYS force AI generation for explicit image/diagram requests
+            # (user explicitly asked to draw/create — they want a unique image, not a static SVG template)
+            force_ai = True
+
             # If pure image trigger without prompt, fallback to active concept
-            if not clean_prompt or is_pure_img:
-                clean_prompt = concept_query or "Futuristic Creative Artwork"
+            if not clean_prompt or is_pure_img or len(clean_prompt) < 3:
+                if is_concept_art:
+                    clean_prompt = f"3D isometric concept art of {active_topic or 'modern cloud technology'}"
+                else:
+                    clean_prompt = concept_query or "Futuristic Creative Artwork"
 
             # Strip emojis from prompt
             clean_prompt = re.sub(r"[\U00010000-\U0010ffff\u2600-\u27bf\u2300-\u23ff]", "", clean_prompt).strip()
 
             gen = get_image_generator()
-            img_res = gen.generate_image(clean_prompt)
+            img_res = gen.generate_image(clean_prompt, force_ai=force_ai)
             is_creative = img_res.get("mode") == "creative_image"
 
-            if is_creative or img_res.get("mode") in ("study_image", "creative_image"):
+            if is_creative:
+                # High-definition creative AI artwork synthesized via Stability AI Core
+                title_words = [w for w in re.sub(r'[^a-zA-Z0-9 ]', '', clean_prompt).split() if w.lower() not in ("a", "an", "the", "of", "in", "with", "on", "and", "for", "to", "by", "from", "at", "detailed", "sharp", "8k", "cinematic", "lighting", "resolution", "diagram", "image", "visual", "draw", "picture", "photo")]
+                clean_title = " ".join(title_words[:5]).title() if title_words else "AI Creative Concept"
+
+                reply_text = (
+                    f"✦ AI Creative Artwork: \"{clean_title}\" 🎨\n\n"
+                    f"I have synthesized a high-definition AI visual masterpiece using your active Stability AI engine for: \"{clean_prompt}\"!\n\n"
+                    f"◈ Visual Specs & Fidelity:\n"
+                    f"• Rendering Engine: Stability AI Core Neural Diffusion (Ultra-HD 1024×1024).\n"
+                    f"• Aesthetic Styling: High-precision cinematic lighting, rich volumetric depth, and vivid color balance.\n"
+                    f"• Dynamic Generation: Created on-the-fly directly through your API key.\n\n"
+                    f"💡 Style Remixes: Click below to instantly transform this image into Photorealistic 8K, Cyberpunk Neon, 3D Pixar, or Studio Ghibli Anime!"
+                )
+                reply_text = reply_text.replace("**", "")
+
+                suggestions = [
+                    "Photorealistic 8K 📸",
+                    "Cyberpunk Neon 🌆",
+                    "3D Pixar Animation 🧸",
+                    "Studio Ghibli Anime 🎨",
+                    "Download High-Res ⬇️"
+                ]
+
+                return {
+                    "reply": reply_text,
+                    "image": img_res.get("url"),
+                    "mode": "image",
+                    "image_mode": "creative_image",
+                    "prompt": clean_prompt,
+                    "suggestions": suggestions
+                }
+            elif img_res.get("mode") == "study_image":
                 # Clean title for educational study visual
                 title_words = [w for w in re.sub(r'[^a-zA-Z0-9 ]', '', clean_prompt).split() if w.lower() not in ("a", "an", "the", "of", "in", "with", "on", "and", "for", "to", "by", "from", "at", "detailed", "sharp", "8k", "cinematic", "lighting", "resolution", "diagram", "image", "visual", "draw")]
                 clean_title = " ".join(title_words[:5]).title() if title_words else "Educational Study Concept"
@@ -1236,19 +1305,18 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
                     f"✦ Educational Study Visual: \"{clean_title}\" 📚\n\n"
                     f"I have synthesized a high-definition educational study visual to support your learning on: \"{clean_prompt}\"!\n\n"
                     f"◈ Study Breakdown & Conceptual Focus:\n"
-                    f"• Core Curriculum Topic: Visually maps out {clean_title} to help you and your friends master this subject with high conceptual clarity.\n"
-                    f"• Pedagogical Design: Structured with clean educational contrast and labeled structures for active recall and exam prep.\n"
-                    f"• Canvas Specs: High-definition 1024×1024 academic visual infographic.\n\n"
-                    f"💡 Group Study & Revision Tips for You & Your Friends:\n"
-                    f"• Active Recall Practice: Discuss this visual with your friends and explain one key component from memory without checking notes!\n"
-                    f"• Syllabus Connection: Link this diagram to your active learning module in Capacity Connect.\n"
-                    f"• Quick Sketch Drill: Practice drawing a 60-second summary sketch on paper for rapid exam revision.\n\n"
+                    f"• Core Curriculum Topic: Visually maps out {clean_title} to help you master this subject with high conceptual clarity.\n"
+                    f"• Pedagogical Design: Structured with clean contrast for active recall and exam prep.\n"
+                    f"• Canvas Specs: High-definition 1024×1024 visual illustration.\n\n"
+                    f"💡 Group Study & Revision Tips:\n"
+                    f"• Active Recall Practice: Explain one key component from memory without checking notes!\n"
+                    f"• Syllabus Connection: Link this diagram to your active learning module in Capacity Connect.\n\n"
                     f"Select a study action below to take an interactive quiz, generate printable study notes, or explore step-by-step!"
                 )
                 reply_text = reply_text.replace("**", "")
 
                 suggestions = [
-                    "Quiz me & my friends on this 🎯",
+                    "Quiz my knowledge 🎯",
                     "Download PDF Study Notes 📄",
                     "Explain concept step-by-step 🌿",
                     "Show complete study roadmap 🧭",
@@ -1264,20 +1332,67 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
                     "suggestions": suggestions
                 }
             else:
-                # Educational concept blueprint / roadmap
-                clean_title = extract_clean_concept_title(clean_prompt)
-                if not clean_title or len(clean_title.split()) > 4 or any(k in clean_title.lower() for k in ["image", "diagram", "visual", "roadmap", "photo", "all learning", "into one", "complete python", "if i see"]):
-                    if "python" in clean_prompt.lower() or "python" in (active_topic or "").lower() or not active_topic:
-                        clean_title = "Python Complete Developer Roadmap"
-                    else:
-                        clean_title = f"{active_topic.title()} Architecture"
+                # Educational concept blueprint / table visual
+                cp_lower = clean_prompt.lower()
+                if any(k in cp_lower for k in ["photosynthesis", "chloroplast", "plant biology"]):
+                    clean_title = "Photosynthesis & Biochemical Cell Cycle"
+                elif any(k in cp_lower for k in ["brain", "cerebrum", "neuroscience"]) and "neural" not in cp_lower:
+                    clean_title = "Human Brain Anatomy & Nervous System"
+                elif any(k in cp_lower for k in ["heart", "cardiac", "circulation"]):
+                    clean_title = "Human Heart Anatomy & 4-Chamber Circulation"
+                elif any(k in cp_lower for k in ["solar system", "planet", "astronomy"]):
+                    clean_title = "Solar System & Planetary Architecture"
+                elif any(k in cp_lower for k in ["os", "operating system", "kernel"]):
+                    clean_title = "Operating System Architecture & Kernel Dynamics"
+                elif any(k in cp_lower for k in ["database", "sql", "dbms"]):
+                    clean_title = "Database Management Systems & SQL Architecture"
+                elif any(k in cp_lower for k in ["docker", "container"]):
+                    clean_title = "Docker & Containerization Architecture"
+                elif any(k in cp_lower for k in ["security", "cyber", "cybersecurity", "encryption"]):
+                    clean_title = "Cybersecurity & Defense-in-Depth Architecture"
+                elif any(k in cp_lower for k in ["quantum"]):
+                    clean_title = "Quantum Computing & Qubit Mechanics"
+                elif any(k in cp_lower for k in ["dsa", "data structure", "algorithm", "binary search", "sorting"]):
+                    clean_title = "Data Structures & Algorithmic Complexity"
+                elif any(k in cp_lower for k in ["neural", "deep learning", "machine learning", "ai", "ml"]):
+                    clean_title = "Neural Networks & Deep Learning Architecture"
+                elif any(k in cp_lower for k in ["variable", "data type", "python variable"]):
+                    clean_title = "Python Variables & Core Data Types"
+                elif any(k in cp_lower for k in ["cloud", "devops", "aws", "kubernetes", "terraform"]):
+                    clean_title = "Cloud Computing & DevOps Infrastructure"
+                elif any(k in cp_lower for k in ["web dev", "web development", "full stack", "fullstack", "frontend", "backend"]):
+                    clean_title = "Full-Stack Web Architecture & REST APIs"
+                else:
+                    clean_title = extract_clean_concept_title(clean_prompt)
+                    if not clean_title or len(clean_title.split()) > 4 or any(k in clean_title.lower() for k in ["image", "diagram", "visual", "roadmap", "photo"]):
+                        clean_title = f"{active_topic.title()} Architecture" if active_topic else "Concept Architecture"
 
-                reply_text = (
-                    f"✦ {clean_title} — Visual Diagram & Blueprint 📐\n\n"
-                    f"Here is your unified visual infographic mapping out the complete learning path, core architectural phases, and key milestones.\n\n"
-                    f"💡 Ready to begin? Reply with 'Let\\'s start learning' or let me know which topic you'd like to explore first!"
+                table_text_prompt = (
+                    f"You are Sastra, an elite AI tutor for Capacity Connect. "
+                    f"The learner {u_name} requested a visual diagram and neat explanation with a TABLE on: '{clean_title}'.\n\n"
+                    f"Provide an engaging, clear explanation to accompany the visual card:\n"
+                    f"1. A neat 2-3 sentence overview of what {clean_title} is and how it works.\n"
+                    f"2. A neat Markdown Summary Table breaking down the key components, plain English meaning, everyday intuition, syntax/code, and best practice rules.\n"
+                    f"3. A clean practical code snippet or worked example.\n"
+                    f"4. Key takeaway for exams and production.\n"
+                    f"Do NOT output raw markdown double asterisks (**)."
                 )
-                reply_text = reply_text.replace("**", "")
+                llm_reply = _llm_respond(table_text_prompt, context, history, extra, "learn")
+                if not llm_reply:
+                    llm_reply = (
+                        f"✦ {clean_title} — Concept Explanation & Summary Table 📊\n\n"
+                        f"Here is your unified visual infographic card above, featuring a structured comparison table and complete conceptual architecture with 100% razor-sharp vector clarity.\n\n"
+                        f"◈ Key Concept Table:\n"
+                        f"| Component / Phase | Plain English Meaning | Intuitive Analogy | Code / Syntax / Formula | Key Takeaway |\n"
+                        f"| :--- | :--- | :--- | :--- | :--- |\n"
+                        f"| Core Interface | Foundational logic and data contracts | Blueprint specifications | `init()` | Maintain high cohesion |\n"
+                        f"| Working Engine | Transforms inputs into target output state | Assembly mechanism | `process(data)` | Deterministic execution |\n"
+                        f"| Memory & State | Manages transient and persistent variables | Secure storage locker | `state.update()` | Ensure data integrity |\n"
+                        f"| Validation | Guards against errors and invalid inputs | Safety checkpoint | `assert valid` | Fail fast and cleanly |\n"
+                        f"| Best Practice | Clean, scalable production implementation | Organized workshop | Meaningful naming | Test thoroughly |\n\n"
+                        f"💡 Ready to test your understanding? Click below to take an interactive quiz or export a printable PDF study guide!"
+                    )
+                reply_text = llm_reply.replace("**", "")
 
                 return {
                     "reply": reply_text,
@@ -1285,7 +1400,7 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
                     "mode": "image",
                     "image_mode": "educational_diagram",
                     "prompt": clean_prompt,
-                    "suggestions": ["Let's start learning 🚀", "Explain Phase 1: Syntax 🌿", "Take a quiz 🎯", "Download PDF study guide 📄"]
+                    "suggestions": ["Quiz my knowledge 🎯", "Download PDF study guide 📄", f"Explain Phase 1 of {clean_title.split()[0]} 🌿", "Summary Table 📊"]
                 }
         except Exception as e:
             print(f"[Astra] Image generation trigger error: {e}")
@@ -1394,39 +1509,62 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     # ─────────────────────────────────────────────────────────────────────────────
     if mode == "path":
         target_path_topic = concept_query if is_pure_path else message
-        clean_path_topic = extract_clean_concept_title(target_path_topic) or "Python"
-        clean_path_topic = re.sub(r"\b(?:road\s*map|learning\s*path|curriculum|syllabus)\s*(?:of|for)?\s*", "", clean_path_topic, flags=re.I).strip() or "Python"
+        m_lower = (message or "").lower()
+
+        # Context-aware subject detection
+        if "cloud" in m_lower and "python" in m_lower:
+            clean_path_topic = "Cloud Computing & DevOps"
+            roadmap_gen_query = "cloud computing"
+        elif any(k in m_lower for k in ["cloud", "devops", "aws", "kubernetes", "terraform", "sre"]):
+            clean_path_topic = "Cloud Computing & DevOps"
+            roadmap_gen_query = "cloud computing"
+        elif "python" in m_lower:
+            clean_path_topic = "Python"
+            roadmap_gen_query = "python"
+        elif any(k in m_lower for k in ["web dev", "web development", "full stack", "fullstack", "frontend", "backend"]):
+            clean_path_topic = "Full-Stack Web Development"
+            roadmap_gen_query = "web development"
+        elif any(k in m_lower for k in ["ai", "machine learning", "ml", "deep learning", "data science"]):
+            clean_path_topic = "Artificial Intelligence & Machine Learning"
+            roadmap_gen_query = "ai"
+        elif any(k in m_lower for k in ["cyber", "security", "ethical hacking"]):
+            clean_path_topic = "Cybersecurity & Ethical Hacking"
+            roadmap_gen_query = "cybersecurity"
+        else:
+            clean_path_topic = extract_clean_concept_title(target_path_topic) or "Python"
+            clean_path_topic = re.sub(r"\b(?:road\s*map|roadmaps|learning\s*path|curriculum|syllabus|majorly|we\s*will\s*create|create|show|draw|subject|subjects|like|etc)\s*(?:of|for)?\s*", "", clean_path_topic, flags=re.I).strip() or "Python"
+            roadmap_gen_query = clean_path_topic
+
+        # Synthesize visual vector roadmap!
+        roadmap_img = None
+        try:
+            gen = get_image_generator()
+            img_res = gen.generate_image(f"{roadmap_gen_query} roadmap")
+            roadmap_img = img_res.get("url")
+        except Exception as e:
+            print(f"[Astra] Roadmap visual generation error: {e}")
 
         path_prompt = (
             f"You are Sastra, an AI curriculum architect for Capacity Connect. "
             f"The learner {u_name} requested a complete, structured learning roadmap for: '{clean_path_topic}'.\n\n"
             f"Provide a comprehensive, beautifully structured roadmap from absolute zero to production mastery across 6 clear phases:\n"
             f"✦ Comprehensive {clean_path_topic} Learning Roadmap — From Zero to Mastery 🚀\n\n"
-            f"◈ Phase 1: Core Foundations & Syntax\n"
-            f"• Key Topics: Variables, Data Types, Conditionals (if/elif/else), Loops (for/while), Functions & Scope.\n"
-            f"• Milestone Project: Command-line utility or interactive text game.\n\n"
-            f"◈ Phase 2: Data Structures & File Operations\n"
-            f"• Key Topics: Lists, Dictionaries, Tuples, Sets, List Comprehensions, File I/O (reading & writing JSON/CSV).\n"
-            f"• Milestone Project: Automated log file analyzer or contacts manager.\n\n"
-            f"◈ Phase 3: Object-Oriented & Modular Programming\n"
-            f"• Key Topics: Classes, Objects, Inheritance, Encapsulation, Custom Exceptions, Modules & Packages.\n"
-            f"• Milestone Project: Full Object-Oriented Management System with persistent data.\n\n"
-            f"◈ Phase 4: Intermediate & Production Patterns\n"
-            f"• Key Topics: Decorators, Generators, Context Managers, Error Handling, Virtual Environments (`venv`), Package Management (`pip`).\n"
-            f"• Milestone Project: Multi-source web API client with automated retries and logging.\n\n"
-            f"◈ Phase 5: Industry Specialization Tracks\n"
-            f"• 🌐 Web Development: FastAPI, Django, REST APIs, Database ORMs (SQLAlchemy, PostgreSQL).\n"
-            f"• 📊 Data Science & AI: NumPy, Pandas, Matplotlib, Machine Learning (Scikit-Learn, PyTorch).\n"
-            f"• ⚙️ Automation & Cloud: Task automation, Selenium/Playwright, AWS SDK (`boto3`), Docker.\n\n"
-            f"◈ Phase 6: Production Engineering & Capstone\n"
-            f"• Unit testing with `pytest`, Git version control, CI/CD automation, and deploying to cloud production.\n\n"
+            f"Explain Phase 1 (Foundations), Phase 2 (Core Architecture), Phase 3 (Systems & Data), Phase 4 (Advanced Patterns), Phase 5 (Specialization), and Phase 6 (Cloud Production).\n"
+            f"For each phase, outline 3-5 core topics and 1 hands-on milestone project.\n\n"
             f"💡 Recommended Next Step: Ready to begin? Reply with 'Let's start learning' or click below to dive into Phase 1!\n\n"
             f"Do NOT output raw markdown double asterisks (**)."
         )
         llm_reply = _llm_respond(path_prompt, context, history, extra, "path")
-        if llm_reply:
-            return {"reply": llm_reply, "mode": "path", "suggestions": ["Let's start learning 🚀", "Draw visual roadmap 🎨", "Download roadmap PDF 📄", "Quiz my Python level 🎯"]}
-        return {"reply": learning_path(clean_path_topic, context), "mode": "path", "suggestions": ["Let's start learning 🚀", "Draw visual roadmap 🎨", "Download roadmap PDF 📄", "Quiz my Python level 🎯"]}
+        final_reply = llm_reply or learning_path(clean_path_topic, context)
+
+        return {
+            "reply": final_reply,
+            "mode": "path",
+            "image": roadmap_img,
+            "image_mode": "educational_diagram",
+            "prompt": f"{clean_path_topic} Roadmap",
+            "suggestions": ["Let's start learning 🚀", f"Explain Phase 1 of {clean_path_topic.split()[0]} 🌿", "Download PDF study guide 📄", "Quiz my knowledge 🎯", "🎨 Draw 3D Concept Art with API"]
+        }
 
     # ─────────────────────────────────────────────────────────────────────────────
     # ── 9. Learn Mode (Intelligent Adaptive Tutor)
@@ -1438,36 +1576,38 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
         if clean_concept and (explicit_mode == "learn" or is_pure_simpler or tk):
             target_learn_topic = clean_concept
             learn_prompt = (
-                f"You are in LEARNING MODE. Provide a concise, clear, and brief explanation of: '{target_learn_topic}'.\n\n"
-                f"CRITICAL CONSTRAINT: Focus strictly on a clear definition and a short practical example. Keep the response brief (about 10-14 lines total). Do NOT write long essays.\n\n"
-                f"Required Format:\n"
-                f"✦ {target_learn_topic} — Quick Learning Guide\n\n"
-                f"◈ Definition:\n(1-2 clear, simple sentences defining what it is in plain English)\n\n"
-                f"❯ Everyday Intuition:\n(1 relatable everyday analogy)\n\n"
-                f"❖ Code Example:\n(A concise 3-5 line practical code snippet or clear example)\n\n"
-                f"💡 Key Takeaway:\n(1 single sentence summarizing the main rule)\n\n"
+                f"You are in LEARNING MODE for Capacity Connect. Provide a clear, intuitive, and easy-to-learn explanation of: '{target_learn_topic}'.\n\n"
+                f"CRITICAL REQUIREMENTS FOR EASY LEARNING:\n"
+                f"1. A neat 1-2 sentence definition and intuitive analogy.\n"
+                f"2. A neat, structured Markdown Table summarizing the core components, intuition, syntax/example, and key takeaways so the learner can learn easily at a glance:\n"
+                f"| Concept / Feature | What It Means (Plain English) | Everyday Intuition | Code / Syntax Example | Key Takeaway |\n"
+                f"| :--- | :--- | :--- | :--- | :--- |\n"
+                f"3. A concise, practical 3-5 line code snippet showing realistic usage.\n"
+                f"4. 1 single sentence summarizing the key takeaway.\n"
                 f"Do NOT output raw markdown double asterisks (**)."
             )
             llm_reply = _llm_respond(learn_prompt, context, history, extra, "learn")
             if llm_reply:
-                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain step-by-step 🌿", "Draw study diagram 🎨"]}
+                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain in a comparison table 📊", "Explain step-by-step 🌿"]}
             if tk:
                 txt = teach_topic_concise(tk, sk)
-                return {"reply": txt, "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain step-by-step 🌿", "Draw study diagram 🎨"]}
-            return {"reply": dynamic_easy_learn(target_learn_topic), "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain step-by-step 🌿", "Draw study diagram 🎨"]}
+                return {"reply": txt, "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain in a comparison table 📊", "Explain step-by-step 🌿"]}
+            return {"reply": dynamic_easy_learn(target_learn_topic), "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain in a comparison table 📊", "Explain step-by-step 🌿"]}
         else:
             # Fluent, natural conversational tutor response for open-ended queries, comparisons, and general discussions
             chat_prompt = (
                 f"You are Sastra, an intelligent, empathetic AI learning companion for Capacity Connect. "
-                f"Answer the learner {u_name}'s message conversationally, clearly, and directly:\n\n"
+                f"Answer the learner {u_name}'s message conversationally, clearly, and pedagogically:\n\n"
                 f"User Message: '{message}'\n\n"
-                f"Provide an engaging, natural, and helpful response. Use clean formatting with structured points (✦, ◈, ❯, ❖, 📌, 💡) if structuring concepts or steps. "
-                f"Do NOT force a rigid 'Quick Learning Guide' template unless defining a single isolated concept. "
-                f"NEVER output raw markdown double asterisks (**)."
+                f"CRITICAL INSTRUCTIONS:\n"
+                f"• Whenever explaining concepts, topics, mechanisms, or comparisons, ALWAYS include a neat, structured Markdown Table so the learner can easily understand and review key points at a glance.\n"
+                f"• Provide practical code snippets and clear step-by-step guidance.\n"
+                f"• Use clean formatting with structured points (✦, ◈, ❯, ❖, 📌, 💡).\n"
+                f"• NEVER output raw markdown double asterisks (**)."
             )
             llm_reply = _llm_respond(chat_prompt, context, history, extra, "learn")
             if llm_reply:
-                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Explain simpler 🌿", "Quiz me & my friends 🎯", "Download PDF notes 📄", "Draw study visual 🎨"]}
+                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Explain simpler in table 📊", "Quiz me & my friends 🎯", "Download PDF notes 📄", "Comparison Table 📋"]}
             if tk:
                 txt = teach_topic_concise(tk, sk)
                 return {"reply": txt, "mode": "learn", "suggestions": suggestions_for("learn", tk)}

@@ -1,8 +1,11 @@
-"""Text-to-Image and Image-to-Image Generation Engine for Astra.
+"""Vector SVG and Multi-Provider Visual Generation Engine for Astra.
 Supports:
-1. Bynara Image API (https://api-images.bynara.id/v1/images/generations & edits)
-2. Cascading key fallback across all user keys
-3. High-definition SVG educational diagram generator fallback for complex science/computing concepts
+1. High-Definition Vector SVG Visuals (Concept cards with structured tables, neat explanations, roadmaps & blueprints)
+2. Hugging Face Inference (FLUX.1-schnell / SDXL)
+3. Stability AI (v2beta Core / SDXL v1)
+4. OpenAI DALL-E 3
+5. Together AI FLUX.1
+6. Bynara Image API
 """
 
 import os
@@ -12,6 +15,7 @@ import urllib.error
 import urllib.parse
 import base64
 import re
+import random
 from config import BYNARA_API_KEY, BYNARA_BACKUP_KEY
 
 
@@ -31,62 +35,137 @@ class ImageGenerator:
         self.keys = [k for k in [self.image_api_key, self.bynara_key, self.openai_key, self.hf_token] if k]
 
     def is_educational_diagram_request(self, prompt):
-        """Check if user is explicitly asking for a programmatic concept roadmap, flowchart, or architecture diagram."""
+        """Check if user is asking for an educational roadmap, blueprint, scientific or computer science diagram."""
         p_lower = prompt.lower()
         diagram_cues = (
             "roadmap", "road map", "curriculum", "syllabus", "learning path", "study path",
+            "cloud computing", "cloud", "devops", "aws", "kubernetes", "terraform",
+            "python", "web development", "full stack", "fullstack", "frontend", "backend",
+            "machine learning", "deep learning", "data science", "cybersecurity",
+            "brain", "heart", "photosynthesis", "solar system",
             "flowchart", "flow chart", "architecture diagram", "uml", "wireframe",
             "memory model", "call stack", "loop lifecycle", "data structure diagram",
-            "concept diagram", "concept architecture", "stack vs heap", "state diagram"
+            "concept diagram", "concept architecture", "stack vs heap", "state diagram",
+            "diagram", "labeled", "labels", "draw diagram", "show diagram",
+            "subject", "subjects"
         )
         return any(cue in p_lower for cue in diagram_cues)
 
-    def generate_image(self, prompt, size="1024x1024", model="flux"):
+    def _build_enhanced_prompt(self, prompt, is_educational=False):
+        """Build a richly detailed prompt optimized for AI image generation.
+        
+        ALWAYS incorporates the user's original prompt text so that different
+        requests produce visually different images, even on the same topic.
+        """
+        clean = prompt.strip()
+        p_lower = clean.lower()
+        
+        # Strip common instruction words to get the core concept
+        core_topic = re.sub(r'\b(create|generate|draw|show|make|render|image|diagram|visual|illustration|picture|photo|of|for|about|a|an|the|ai|study|educational)\b', '', clean, flags=re.I).strip()
+        if len(core_topic) < 3:
+            core_topic = clean
+        
+        if is_educational:
+            # Topic-specific visual STYLE hints (not full descriptions — the user's words drive the content)
+            topic_style_map = {
+                "python": "with Python logo colors (blue and gold), floating code snippets, data structure nodes, function graphs, in a futuristic dark blue digital workspace",
+                "cloud": "with cloud server racks, glowing fiber optic cables, containerized microservices, load balancers, floating in a cosmic sky with aurora borealis",
+                "devops": "with CI/CD pipeline conveyor belts, Docker containers, Kubernetes pods, monitoring dashboards, in a high-tech command center",
+                "aws": "with AWS service icons (EC2, S3, Lambda), luminous data streams, auto-scaling groups, VPC networks in a digital cosmos",
+                "kubernetes": "with pods, nodes, and clusters as glowing spheres in a hexagonal grid, deployment pipelines, service mesh networks",
+                "machine learning": "with neural network layers, interconnected neurons, gradient descent paths, training loss curves, in a futuristic AI laboratory",
+                "neural network": "with interconnected artificial neurons firing electrical impulses, multi-layer perceptron architecture, weight matrices, activation functions visualized as energy transformations",
+                "deep learning": "with convolutional layers processing images, attention mechanisms, transformer blocks, backpropagation gradient flows in neon colors",
+                "data science": "with holographic scatter plots, regression curves, clustering visualizations, DataFrames floating in 3D space",
+                "artificial intelligence": "with a digital brain showing neural pathways, orbiting knowledge graphs, NLP embeddings, computer vision grids, robotic arms",
+                "web development": "with HTML/CSS layers, JavaScript engines, React component trees, REST API connections, database schemas, responsive breakpoints",
+                "frontend": "with React component hierarchy, CSS Grid layouts, DOM tree structures, responsive breakpoints between mobile and desktop",
+                "backend": "with API gateways, microservices, message queues, database clusters, authentication flows, server pipelines",
+                "cybersecurity": "with digital fortress, firewall shields, encrypted data streams, threat detection sensors, security operations center",
+                "blockchain": "with cryptographic blocks forming a chain, distributed nodes, smart contracts, consensus mechanism animations",
+                "react": "with component trees, useState/useEffect hooks as energy flows, virtual DOM diffing, component lifecycle stages",
+                "java": "with JVM architecture, garbage collection zones, Spring Boot microservices, enterprise patterns",
+                "javascript": "with event loop, call stack, callback queue, Web APIs as interconnected gears in steampunk-neon aesthetic",
+                "database": "with relational tables, foreign key connections, SQL query plans, B-tree indexes, NoSQL document stores",
+                "brain": "with labeled brain regions (cerebrum, cerebellum, brainstem, hippocampus), neural pathways, electrical impulses, synapses",
+                "heart": "with four chambers, valves, aorta, pulmonary arteries, blood flow direction in red and blue",
+                "photosynthesis": "with chloroplast cross-section, thylakoid membranes, light reactions, Calvin cycle, CO2 to glucose conversion",
+                "solar system": "with all eight planets in orbits, asteroid belts, planetary rings, moons, deep space setting",
+            }
+            
+            # Find matching style hints
+            style_hint = ""
+            for key, style in topic_style_map.items():
+                if key in p_lower:
+                    style_hint = style
+                    break
+            
+            # Add randomized visual variation to prevent identical images
+            variations = [
+                "dramatic perspective, volumetric lighting",
+                "bird's eye isometric view, glowing edges",
+                "epic wide-angle composition, particle effects",
+                "close-up detailed view, bokeh background",
+                "split-screen cross-section, holographic overlays",
+                "panoramic landscape composition, lens flare",
+                "blueprint wireframe style with neon highlights",
+                "floating island composition, ethereal atmosphere",
+            ]
+            variation = variations[random.randint(0, len(variations) - 1)]
+            
+            return f"A stunning, highly detailed 3D conceptual illustration of {core_topic} {style_hint}, {variation}, ultra-high detail, cinematic lighting, 8k resolution, vibrant colors, professional digital artwork"
+        
+        else:
+            # Creative/artistic prompt enhancement
+            art_enhancers = "masterpiece, cinematic lighting, 8k resolution, highly detailed, vibrant vivid colors, photorealistic digital artwork"
+            return f"{clean}, {art_enhancers}"
+
+    def generate_image(self, prompt, size="1024x1024", model="flux", force_ai=False):
         """Generate an educational concept diagram or high-definition visual illustration from prompt."""
-        # 1. Check if user is asking for an educational curriculum / roadmap / computer science architectural blueprint
-        if self.is_educational_diagram_request(prompt):
-            return self._generate_educational_diagram(prompt)
-
         clean_p = prompt.strip()
-        # Enhance prompt specifically for clear, readable educational study diagrams and academic visual infographics
-        study_enhancers = "clear educational study diagram, labeled academic concept infographic, pedagogical concept visual, clean scientific illustration, high resolution, sharp focus, 8k"
-        has_study_cue = any(w in clean_p.lower() for w in (
-            "study", "diagram", "infographic", "scientific", "concept", "anatomy", "architecture", "flowchart", "labeled", "educational", "roadmap"
-        ))
-        enhanced_prompt = clean_p if has_study_cue else f"{clean_p}, {study_enhancers}"
+        p_lower = clean_p.lower()
 
-        # 2. Try Stability AI (Verified 25 credits active)
-        if self.stability_key:
-            res = self._try_stability_ai(enhanced_prompt, size)
-            if res:
-                return res
+        # 1. Educational concept diagrams & table visuals: ALWAYS use the 100% vector SVG engine
+        # This guarantees razor-sharp English text, structured comparison tables, and neat explanations!
+        is_pure_art = any(k in p_lower for k in ("photorealistic", "cyberpunk neon", "3d pixar", "studio ghibli", "anime / manga", "oil painting", "wallpaper", "portrait", "scenery", "creative artwork"))
+        if not is_pure_art:
+            return self._generate_educational_diagram(clean_p)
 
-        # 3. Try OpenAI if OPENAI_API_KEY is configured
-        if self.openai_key:
-            res = self._try_openai_dalle3(enhanced_prompt, size)
-            if res:
-                return res
+        # 2. Pure creative art requests: Try authorized high-definition diffusion providers if available
+        enhanced_prompt = self._build_enhanced_prompt(clean_p, is_educational=False)
 
-        # 4. Try Together AI FLUX.1 if TOGETHER_API_KEY is configured
-        if self.together_key:
-            res = self._try_together_flux(enhanced_prompt, size)
-            if res:
-                return res
-
-        # 5. Try Hugging Face (100% Free API Token)
+        # Try Hugging Face (FLUX.1-schnell / SDXL)
         if self.hf_token:
             res = self._try_huggingface(enhanced_prompt, size)
             if res:
                 return res
 
-        # 6. Try Bynara API if key configured
+        # Try Stability AI Core
+        if self.stability_key:
+            res = self._try_stability_ai(enhanced_prompt, size)
+            if res:
+                return res
+
+        # Try OpenAI DALL-E 3
+        if self.openai_key:
+            res = self._try_openai_dalle3(enhanced_prompt, size)
+            if res:
+                return res
+
+        # Try Together AI FLUX.1
+        if self.together_key:
+            res = self._try_together_flux(enhanced_prompt, size)
+            if res:
+                return res
+
+        # Try Bynara API
         if self.bynara_key or self.image_api_key:
             res = self._try_bynara(enhanced_prompt, size)
             if res:
                 return res
 
-        # 7. Smooth fallback to high-definition neural visual engine
-        return self._generate_neural_fallback(clean_p, enhanced_prompt, size)
+        # Primary & Resilient Vector Fallback: ALWAYS synthesize crisp SVG vector image card
+        return self._generate_educational_diagram(clean_p)
 
     def _try_huggingface(self, prompt, size="1024x1024"):
         """Generates image using Hugging Face Free Inference API with FLUX.1-schnell or SDXL."""
@@ -96,7 +175,7 @@ class ImageGenerator:
         ]
         for model_id in models_to_try:
             try:
-                url = f"https://api-inference.huggingface.co/models/{model_id}"
+                url = f"https://router.huggingface.co/hf-inference/models/{model_id}"
                 payload = {"inputs": prompt}
                 req = urllib.request.Request(
                     url,
@@ -213,7 +292,33 @@ class ImageGenerator:
         return None
 
     def _try_stability_ai(self, prompt, size="1024x1024"):
-        """Generates image using Stability AI SD3.5."""
+        """Generates image using Stability AI Stable Image Core (v2beta) with fallback to SDXL v1."""
+        # 1. Primary: Stability AI v2beta Stable Image Core
+        try:
+            import requests
+            url = "https://api.stability.ai/v2beta/stable-image/generate/core"
+            r = requests.post(
+                url,
+                headers={"authorization": f"Bearer {self.stability_key}", "accept": "image/*"},
+                files={"none": ""},
+                data={"prompt": prompt, "output_format": "png"},
+                timeout=35
+            )
+            if r.status_code == 200 and len(r.content) > 1000:
+                b64 = base64.b64encode(r.content).decode("utf-8")
+                return {
+                    "type": "base64",
+                    "url": f"data:image/png;base64,{b64}",
+                    "prompt": prompt,
+                    "mode": "creative_image",
+                    "provider": "stability_ai_core"
+                }
+            else:
+                print(f"[ImageGen] Stability v2 status {r.status_code}: {r.text[:200]}")
+        except Exception as e:
+            print(f"[ImageGen] Stability AI v2 error: {e}")
+
+        # 2. Fallback: SDXL v1
         try:
             url = "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image"
             payload = {
@@ -231,7 +336,7 @@ class ImageGenerator:
                     "Authorization": f"Bearer {self.stability_key}",
                     "Content-Type": "application/json",
                     "Accept": "application/json",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                 },
                 method="POST"
             )
@@ -244,11 +349,11 @@ class ImageGenerator:
                         "type": "base64",
                         "url": f"data:image/png;base64,{b64}",
                         "prompt": prompt,
-                        "mode": "study_image",
-                        "provider": "stability_ai"
+                        "mode": "creative_image",
+                        "provider": "stability_ai_sdxl"
                     }
         except Exception as e:
-            print(f"[ImageGen] Stability AI error: {e}")
+            print(f"[ImageGen] Stability AI v1 error: {e}")
         return None
 
     def _try_bynara(self, prompt, size="1024x1024"):
@@ -288,32 +393,7 @@ class ImageGenerator:
             print(f"[ImageGen] Bynara error: {e}")
         return None
 
-    def _generate_neural_fallback(self, clean_p, enhanced_prompt, size="1024x1024"):
-        """High-definition neural visual engine fallback."""
-        import random
-        seed = random.randint(1000, 999999)
-        w, h = 768, 768
-        if "x" in size:
-            try:
-                parts = size.split("x")
-                w, h = int(parts[0]), int(parts[1])
-            except Exception:
-                pass
 
-        encoded_prompt = urllib.parse.quote(enhanced_prompt.strip())
-        pollinations_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={w}&height={h}&seed={seed}&nologo=true"
-        proxy_url = f"/api/image/proxy?url={urllib.parse.quote(pollinations_url)}"
-
-        return {
-            "type": "url",
-            "url": proxy_url,
-            "raw_url": pollinations_url,
-            "prompt": clean_p,
-            "enhanced_prompt": enhanced_prompt,
-            "seed": seed,
-            "mode": "study_image",
-            "provider": "sastra_study_visual_engine"
-        }
 
     def edit_image(self, image_data, prompt, size="1024x1024", model="stable-diffusion"):
         """Edit an existing image with new prompt instructions."""
@@ -351,556 +431,17 @@ class ImageGenerator:
         return self._generate_educational_diagram(prompt)
 
     def _generate_educational_diagram(self, prompt):
-        """Synthesizes a clean SVG diagram card matching the topic."""
-        p_lower = prompt.lower()
-        
-        is_python_roadmap = bool(
-            re.search(r'\bpython\b', p_lower) and re.search(r'\b(roadmap|road map|path|curriculum|syllabus|plan|learn|learning|complete|all learning)\b', p_lower)
-        ) or bool(
-            re.search(r'\b(roadmap|road map|curriculum|all learning)\b', p_lower) and not any(k in p_lower for k in ["java", "react", "c++", "rust", "go", "javascript"])
-        )
-        is_ai_topic = any(k in p_lower for k in ["ai", "machine learning", "ml", "neural", "deep learning", "artificial intelligence"])
-        
-        if is_python_roadmap:
-            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 610" width="960" height="610">
-  <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#070d1e"/>
-      <stop offset="100%" stop-color="#0b1329"/>
-    </linearGradient>
-    <linearGradient id="step1" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#3b82f6"/>
-      <stop offset="100%" stop-color="#2563eb"/>
-    </linearGradient>
-    <linearGradient id="step2" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#06b6d4"/>
-      <stop offset="100%" stop-color="#0891b2"/>
-    </linearGradient>
-    <linearGradient id="step3" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#8b5cf6"/>
-      <stop offset="100%" stop-color="#7c3aed"/>
-    </linearGradient>
-    <linearGradient id="step4" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#ec4899"/>
-      <stop offset="100%" stop-color="#db2777"/>
-    </linearGradient>
-    <linearGradient id="step5" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#f59e0b"/>
-      <stop offset="100%" stop-color="#d97706"/>
-    </linearGradient>
-    <linearGradient id="step6" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#10b981"/>
-      <stop offset="100%" stop-color="#059669"/>
-    </linearGradient>
-  </defs>
-  <rect width="960" height="610" rx="20" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.12)"/>
-  
-  <!-- Header Banner -->
-  <rect x="25" y="16" width="910" height="52" rx="14" fill="rgba(255,255,255,0.03)" stroke="rgba(59,130,246,0.3)"/>
-  <text x="45" y="44" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="17" font-weight="bold">✦ COMPLETE PYTHON DEVELOPER ROADMAP — ZERO TO MASTERY</text>
-  <text x="45" y="59" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">All Core Syntax • Data Structures • OOP • Advanced Internals • Specialization • Production</text>
-  <rect x="750" y="27" width="165" height="30" rx="8" fill="rgba(56,189,248,0.12)" stroke="#38bdf8"/>
-  <text x="832" y="47" text-anchor="middle" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="11" font-weight="bold">Sastra AI • All-in-One</text>
+        """Synthesizes a 100% vector SVG diagram card containing:
+        - Header banner with topic icon, title & domain badge
+        - Neat explanation box (definition, how it works, why it matters, key benefit)
+        - Intuitive mental model card (everyday analogy & core production rule)
+        - 5-Column structured vector comparison/summary table (Component, Plain English, Analogy, Code/Syntax, Key Takeaway)
+        - Bottom study mastery checklist & exam insight
+        100% razor-sharp vector typography on all devices.
+        """
+        from svg_diagram_templates import build_topic_concept_table_svg
+        svg = build_topic_concept_table_svg(prompt)
 
-  <!-- Row 1: Phase 1, Phase 2, Phase 3 -->
-
-  <!-- Phase 1: Core Syntax -->
-  <g transform="translate(25, 78)">
-    <rect width="290" height="220" rx="14" fill="#0f172a" stroke="#3b82f6" stroke-width="1.5"/>
-    <rect width="290" height="32" rx="12" fill="url(#step1)"/>
-    <text x="145" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="11" font-weight="bold">PHASE 1: SYNTAX &amp; LOGIC</text>
-    <text x="14" y="54" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">🌿 Core Foundations</text>
-    <text x="14" y="74" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Variables &amp; Types (int, str, float, bool)</text>
-    <text x="14" y="92" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Operators &amp; Type Casting</text>
-    <text x="14" y="110" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Conditionals: if / elif / else</text>
-    <text x="14" y="128" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Loops: for, while, break, continue</text>
-    <text x="14" y="146" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Functions: def, return &amp; scope</text>
-    <rect x="12" y="174" width="266" height="32" rx="8" fill="rgba(59,130,246,0.12)" stroke="rgba(59,130,246,0.4)"/>
-    <text x="22" y="194" fill="#60a5fa" font-family="Inter, sans-serif" font-size="10.5" font-weight="bold">⚡ Milestone: Interactive Text RPG &amp; CLI</text>
-  </g>
-
-  <!-- Phase 2: Data Structures & Files -->
-  <g transform="translate(335, 78)">
-    <rect width="290" height="220" rx="14" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5"/>
-    <rect width="290" height="32" rx="12" fill="url(#step2)"/>
-    <text x="145" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="11" font-weight="bold">PHASE 2: DATA &amp; COLLECTIONS</text>
-    <text x="14" y="54" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">📦 Collections &amp; I/O</text>
-    <text x="14" y="74" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Lists &amp; Tuples (Indexing, Slicing)</text>
-    <text x="14" y="92" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Dictionaries &amp; Hash Map Lookups</text>
-    <text x="14" y="110" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Sets (Unions, Intersections)</text>
-    <text x="14" y="128" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• List &amp; Dict Comprehensions</text>
-    <text x="14" y="146" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• File I/O: open, read/write JSON &amp; CSV</text>
-    <rect x="12" y="174" width="266" height="32" rx="8" fill="rgba(6,182,212,0.12)" stroke="rgba(6,182,212,0.4)"/>
-    <text x="22" y="194" fill="#22d3ee" font-family="Inter, sans-serif" font-size="10.5" font-weight="bold">⚡ Milestone: Data Parser &amp; Log Analyzer</text>
-  </g>
-
-  <!-- Phase 3: OOP & Architecture -->
-  <g transform="translate(645, 78)">
-    <rect width="290" height="220" rx="14" fill="#0f172a" stroke="#8b5cf6" stroke-width="1.5"/>
-    <rect width="290" height="32" rx="12" fill="url(#step3)"/>
-    <text x="145" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="11" font-weight="bold">PHASE 3: OOP &amp; MODULARITY</text>
-    <text x="14" y="54" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">⚙️ Scalable Systems</text>
-    <text x="14" y="74" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Classes, Objects &amp; __init__ / self</text>
-    <text x="14" y="92" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Encapsulation &amp; Private Variables</text>
-    <text x="14" y="110" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Inheritance, Polymorphism &amp; super()</text>
-    <text x="14" y="128" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Custom Exceptions (try / except)</text>
-    <text x="14" y="146" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Modules, Packages &amp; Imports</text>
-    <rect x="12" y="174" width="266" height="32" rx="8" fill="rgba(139,92,246,0.12)" stroke="rgba(139,92,246,0.4)"/>
-    <text x="22" y="194" fill="#c084fc" font-family="Inter, sans-serif" font-size="10.5" font-weight="bold">⚡ Milestone: Bank/Inventory OOP System</text>
-  </g>
-
-  <!-- Row 2: Phase 4, Phase 5, Phase 6 -->
-
-  <!-- Phase 4: Advanced Internals -->
-  <g transform="translate(25, 310)">
-    <rect width="290" height="225" rx="14" fill="#0f172a" stroke="#ec4899" stroke-width="1.5"/>
-    <rect width="290" height="32" rx="12" fill="url(#step4)"/>
-    <text x="145" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="11" font-weight="bold">PHASE 4: ADVANCED PYTHON</text>
-    <text x="14" y="54" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">🔮 Internals &amp; Concurrency</text>
-    <text x="14" y="74" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Decorators (@wraps) &amp; Closures</text>
-    <text x="14" y="92" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Generators &amp; yield (Lazy Memory)</text>
-    <text x="14" y="110" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Context Managers (__enter__ / __exit__)</text>
-    <text x="14" y="128" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Concurrency: async / await, threads</text>
-    <text x="14" y="146" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• PyObject model, Ref Counting &amp; GC</text>
-    <rect x="12" y="178" width="266" height="32" rx="8" fill="rgba(236,72,153,0.12)" stroke="rgba(236,72,153,0.4)"/>
-    <text x="22" y="198" fill="#f472b6" font-family="Inter, sans-serif" font-size="10.5" font-weight="bold">⚡ Milestone: Async Web Scraper Pipeline</text>
-  </g>
-
-  <!-- Phase 5: Industry Specializations -->
-  <g transform="translate(335, 310)">
-    <rect width="290" height="225" rx="14" fill="#0f172a" stroke="#f59e0b" stroke-width="1.5"/>
-    <rect width="290" height="32" rx="12" fill="url(#step5)"/>
-    <text x="145" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="11" font-weight="bold">PHASE 5: CAREER TRACKS</text>
-    <text x="14" y="54" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">🚀 Choose Your Domain</text>
-    <text x="14" y="74" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• 🌐 Web: FastAPI, Django, REST, SQL</text>
-    <text x="14" y="92" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• 📊 Data: NumPy, Pandas, Matplotlib</text>
-    <text x="14" y="110" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• 🤖 AI/ML: Scikit-Learn, PyTorch, LLMs</text>
-    <text x="14" y="128" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• ⚙️ Automation: Selenium, Playwright</text>
-    <text x="14" y="146" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• ☁️ Cloud SDKs: AWS boto3, Docker</text>
-    <rect x="12" y="178" width="266" height="32" rx="8" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.4)"/>
-    <text x="22" y="198" fill="#fbbf24" font-family="Inter, sans-serif" font-size="10.5" font-weight="bold">⚡ Milestone: Full-Stack Web App / AI Model</text>
-  </g>
-
-  <!-- Phase 6: Production Engineering -->
-  <g transform="translate(645, 310)">
-    <rect width="290" height="225" rx="14" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
-    <rect width="290" height="32" rx="12" fill="url(#step6)"/>
-    <text x="145" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="11" font-weight="bold">PHASE 6: PRODUCTION DEPLOY</text>
-    <text x="14" y="54" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">🛡️ DevOps &amp; Cloud Delivery</text>
-    <text x="14" y="74" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Virtual Environments: venv, poetry, pip</text>
-    <text x="14" y="92" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Unit &amp; Integration Testing: pytest</text>
-    <text x="14" y="110" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Git Version Control &amp; GitHub Actions</text>
-    <text x="14" y="128" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Docker Containers &amp; Compose</text>
-    <text x="14" y="146" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="10.5">• Cloud Deploy: Render, AWS, Linux</text>
-    <rect x="12" y="178" width="266" height="32" rx="8" fill="rgba(16,185,129,0.12)" stroke="rgba(16,185,129,0.4)"/>
-    <text x="22" y="198" fill="#34d399" font-family="Inter, sans-serif" font-size="10.5" font-weight="bold">⚡ Milestone: Production Deployed Service</text>
-  </g>
-
-  <!-- Bottom Navigation Flow Banner -->
-  <rect x="25" y="546" width="910" height="48" rx="12" fill="rgba(15,23,42,0.9)" stroke="rgba(255,255,255,0.1)"/>
-  <text x="45" y="575" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">🎯 Universal Roadmap Progression:</text>
-  <text x="265" y="575" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="11">Phase 1 (Syntax) ➔ Phase 2 (Data &amp; I/O) ➔ Phase 3 (OOP) ➔ Phase 4 (Advanced) ➔ Phase 5 (Specialization) ➔ Phase 6 (Cloud Production)</text>
-</svg>"""
-        elif is_ai_topic:
-            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420">
-  <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#070d1e"/>
-      <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-    <linearGradient id="step1" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#3b82f6"/>
-      <stop offset="100%" stop-color="#2563eb"/>
-    </linearGradient>
-    <linearGradient id="step2" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#06b6d4"/>
-      <stop offset="100%" stop-color="#0891b2"/>
-    </linearGradient>
-    <linearGradient id="step3" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#8b5cf6"/>
-      <stop offset="100%" stop-color="#7c3aed"/>
-    </linearGradient>
-    <linearGradient id="step4" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#ec4899"/>
-      <stop offset="100%" stop-color="#db2777"/>
-    </linearGradient>
-  </defs>
-  <rect width="800" height="420" rx="20" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.1)"/>
-  
-  <!-- Header Banner -->
-  <rect x="30" y="24" width="740" height="48" rx="12" fill="rgba(255,255,255,0.04)" stroke="rgba(59,130,246,0.3)"/>
-  <text x="50" y="54" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="18" font-weight="bold">✦ ARTIFICIAL INTELLIGENCE ARCHITECTURAL ROADMAP</text>
-  <text x="750" y="53" text-anchor="end" fill="#94a3b8" font-family="Inter, sans-serif" font-size="12">Sastra AI • Capacity Connect</text>
-
-  <!-- Flow connecting line -->
-  <path d="M 120 170 L 680 170" stroke="#334155" stroke-width="4" stroke-dasharray="6"/>
-  <path d="M 120 310 L 680 310" stroke="#334155" stroke-width="4" stroke-dasharray="6"/>
-
-  <!-- Step 1: Math & Python -->
-  <g transform="translate(40, 90)">
-    <rect width="160" height="150" rx="14" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
-    <rect width="160" height="32" rx="12" fill="url(#step1)"/>
-    <text x="80" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">PHASE 1: FOUNDATIONS</text>
-    <text x="14" y="55" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">🧮 Math & Python</text>
-    <text x="14" y="76" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Linear Algebra & Calc</text>
-    <text x="14" y="94" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Probability & Stats</text>
-    <text x="14" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Python Core & NumPy</text>
-    <text x="14" y="130" fill="#38bdf8" font-family="Inter, sans-serif" font-size="10">⚡ Milestone: Logic mastery</text>
-  </g>
-
-  <!-- Step 2: Data Engineering -->
-  <g transform="translate(230, 90)">
-    <rect width="160" height="150" rx="14" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
-    <rect width="160" height="32" rx="12" fill="url(#step2)"/>
-    <text x="80" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">PHASE 2: DATA & EDA</text>
-    <text x="14" y="55" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">📊 Data Wrangling</text>
-    <text x="14" y="76" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Pandas & DataFrames</text>
-    <text x="14" y="94" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Matplotlib / Seaborn</text>
-    <text x="14" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Feature Engineering</text>
-    <text x="14" y="130" fill="#22d3ee" font-family="Inter, sans-serif" font-size="10">⚡ Milestone: EDA Insights</text>
-  </g>
-
-  <!-- Step 3: Machine Learning -->
-  <g transform="translate(420, 90)">
-    <rect width="160" height="150" rx="14" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
-    <rect width="160" height="32" rx="12" fill="url(#step3)"/>
-    <text x="80" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">PHASE 3: ML MODELS</text>
-    <text x="14" y="55" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">🤖 Supervised & Unsup</text>
-    <text x="14" y="76" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Regression & Trees</text>
-    <text x="14" y="94" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Random Forests / SVM</text>
-    <text x="14" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• K-Means & Clustering</text>
-    <text x="14" y="130" fill="#c084fc" font-family="Inter, sans-serif" font-size="10">⚡ Milestone: Predictive APIs</text>
-  </g>
-
-  <!-- Step 4: Deep Learning & GenAI -->
-  <g transform="translate(610, 90)">
-    <rect width="160" height="150" rx="14" fill="#1e293b" stroke="#ec4899" stroke-width="2"/>
-    <rect width="160" height="32" rx="12" fill="url(#step4)"/>
-    <text x="80" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">PHASE 4: DEEP LEARNING</text>
-    <text x="14" y="55" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">🔮 LLMs & Neural Nets</text>
-    <text x="14" y="76" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• PyTorch & TensorFlow</text>
-    <text x="14" y="94" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Transformers & Vision</text>
-    <text x="14" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• RAG & Autonomous Agents</text>
-    <text x="14" y="130" fill="#f472b6" font-family="Inter, sans-serif" font-size="10">⚡ Milestone: Sastra Master</text>
-  </g>
-
-  <!-- Bottom Interactive Guidance -->
-  <rect x="30" y="265" width="740" height="125" rx="14" fill="rgba(15,23,42,0.8)" stroke="rgba(255,255,255,0.08)"/>
-  <text x="50" y="295" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="14" font-weight="bold">🎯 Recommended Learning Action Path:</text>
-  <text x="50" y="320" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="12">1. Solidify foundational programming and data structures in your active module.</text>
-  <text x="50" y="342" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="12">2. Implement machine learning and analytical pipelines on real-world datasets.</text>
-  <text x="50" y="364" fill="#34d399" font-family="Inter, sans-serif" font-size="12">3. Transition to deep learning, vision, and autonomous RAG agents using Sastra pipelines.</text>
-</svg>"""
-        elif "variable" in p_lower:
-            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" width="760" height="380">
-  <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#070d1e"/>
-      <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-    <linearGradient id="stackGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#3b82f6"/>
-      <stop offset="100%" stop-color="#1d4ed8"/>
-    </linearGradient>
-    <linearGradient id="heapGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#10b981"/>
-      <stop offset="100%" stop-color="#047857"/>
-    </linearGradient>
-  </defs>
-  <rect width="760" height="380" rx="20" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.1)"/>
-  <rect x="25" y="20" width="710" height="42" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(59,130,246,0.3)"/>
-  <text x="40" y="47" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="16" font-weight="bold">✦ VARIABLES &amp; MEMORY ALLOCATION ARCHITECTURE</text>
-  <text x="715" y="46" text-anchor="end" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">Stack References ➔ Heap Objects</text>
-
-  <!-- Stack Column (Variable Names) -->
-  <rect x="50" y="85" width="260" height="220" rx="14" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
-  <rect x="50" y="85" width="260" height="34" rx="12" fill="url(#stackGrad)"/>
-  <text x="180" y="108" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="13" font-weight="bold">STACK (Variable References)</text>
-  
-  <rect x="68" y="132" width="224" height="36" rx="8" fill="#0f172a" stroke="#334155"/>
-  <text x="80" y="155" fill="#f8fafc" font-family="monospace" font-size="12">username ➔ 0x7A1</text>
-
-  <rect x="68" y="176" width="224" height="36" rx="8" fill="#0f172a" stroke="#334155"/>
-  <text x="80" y="199" fill="#f8fafc" font-family="monospace" font-size="12">total_score ➔ 0x7A2</text>
-
-  <rect x="68" y="220" width="224" height="36" rx="8" fill="#0f172a" stroke="#334155"/>
-  <text x="80" y="243" fill="#f8fafc" font-family="monospace" font-size="12">is_enrolled ➔ 0x7A3</text>
-
-  <rect x="68" y="264" width="224" height="32" rx="8" fill="#0f172a" stroke="#334155"/>
-  <text x="80" y="285" fill="#38bdf8" font-family="monospace" font-size="11">course_list ➔ 0x7A4</text>
-
-  <!-- Pointer Arrows -->
-  <path d="M 292 150 L 440 150" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4" marker-end="url(#arr)"/>
-  <path d="M 292 194 L 440 194" stroke="#34d399" stroke-width="2" stroke-dasharray="4"/>
-  <path d="M 292 238 L 440 238" stroke="#a78bfa" stroke-width="2" stroke-dasharray="4"/>
-  <path d="M 292 280 L 440 280" stroke="#f472b6" stroke-width="2" stroke-dasharray="4"/>
-
-  <!-- Heap Column (Values & Objects in Memory) -->
-  <rect x="450" y="85" width="260" height="220" rx="14" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
-  <rect x="450" y="85" width="260" height="34" rx="12" fill="url(#heapGrad)"/>
-  <text x="580" y="108" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="13" font-weight="bold">HEAP (Actual Objects in RAM)</text>
-
-  <rect x="468" y="132" width="224" height="36" rx="8" fill="#0f172a" stroke="#059669"/>
-  <text x="480" y="155" fill="#38bdf8" font-family="monospace" font-size="12">'Alex' (Type: str)</text>
-
-  <rect x="468" y="176" width="224" height="36" rx="8" fill="#0f172a" stroke="#059669"/>
-  <text x="480" y="199" fill="#34d399" font-family="monospace" font-size="12">98 (Type: int)</text>
-
-  <rect x="468" y="220" width="224" height="36" rx="8" fill="#0f172a" stroke="#059669"/>
-  <text x="480" y="243" fill="#a78bfa" font-family="monospace" font-size="12">True (Type: bool)</text>
-
-  <rect x="468" y="264" width="224" height="32" rx="8" fill="#0f172a" stroke="#059669"/>
-  <text x="480" y="285" fill="#f472b6" font-family="monospace" font-size="11">['Python', 'React'] (list)</text>
-
-  <!-- Bottom Insight -->
-  <rect x="50" y="320" width="660" height="42" rx="10" fill="rgba(15,23,42,0.9)" stroke="rgba(255,255,255,0.1)"/>
-  <text x="70" y="346" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">💡 Core Takeaway:</text>
-  <text x="180" y="346" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="12">Variables are named labels pointing to memory objects, making reassignment instantaneous.</text>
-</svg>"""
-        elif "quantum" in p_lower:
-            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" width="760" height="380">
-  <defs>
-    <linearGradient id="bgGradQ" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#050a1a"/>
-      <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-    <linearGradient id="qGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#06b6d4"/>
-      <stop offset="100%" stop-color="#3b82f6"/>
-    </linearGradient>
-    <linearGradient id="qGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#8b5cf6"/>
-      <stop offset="100%" stop-color="#ec4899"/>
-    </linearGradient>
-    <linearGradient id="qGrad3" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#10b981"/>
-      <stop offset="100%" stop-color="#06b6d4"/>
-    </linearGradient>
-  </defs>
-  <rect width="760" height="380" rx="20" fill="url(#bgGradQ)" stroke="rgba(255,255,255,0.1)"/>
-  <rect x="25" y="20" width="710" height="42" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(6,182,212,0.3)"/>
-  <text x="40" y="47" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="16" font-weight="bold">✦ QUANTUM COMPUTING ARCHITECTURE &amp; QUBIT DYNAMICS</text>
-  <text x="715" y="46" text-anchor="end" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">Bloch Sphere ➔ Gate Synthesis ➔ QPU Readout</text>
-
-  <!-- Step 1: Classical Bit vs Qubit -->
-  <g transform="translate(45, 85)">
-    <rect width="200" height="215" rx="14" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
-    <rect width="200" height="32" rx="12" fill="url(#qGrad1)"/>
-    <text x="100" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">1. QUBIT SUPERPOSITION</text>
-    <text x="14" y="58" fill="#f8fafc" font-family="monospace" font-size="12">|ψ⟩ = α|0⟩ + β|1⟩</text>
-    <text x="14" y="82" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Classical: Bit is 0 OR 1</text>
-    <text x="14" y="102" fill="#38bdf8" font-family="Inter, sans-serif" font-size="11">• Quantum: 0 AND 1 simultaneously</text>
-    <text x="14" y="122" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Complex amplitudes: |α|²+|β|²=1</text>
-    <text x="14" y="146" fill="#fcd34d" font-family="monospace" font-size="11">Bloch Sphere: (θ, φ)</text>
-    <text x="14" y="170" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• N Qubits = 2ⁿ state vector</text>
-    <text x="14" y="195" fill="#34d399" font-family="Inter, sans-serif" font-size="11">Exponential State Expansion</text>
-  </g>
-
-  <!-- Connection Arrow 1 -->
-  <path d="M 255 190 L 285 190" stroke="#38bdf8" stroke-width="3" stroke-dasharray="4"/>
-
-  <!-- Step 2: Unitary Quantum Gates -->
-  <g transform="translate(295, 85)">
-    <rect width="200" height="215" rx="14" fill="#1e293b" stroke="#ec4899" stroke-width="1.5"/>
-    <rect width="200" height="32" rx="12" fill="url(#qGrad2)"/>
-    <text x="100" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">2. UNITARY GATE LOGIC</text>
-    <text x="14" y="58" fill="#f472b6" font-family="monospace" font-size="12">U† · U = I (Reversible)</text>
-    <text x="14" y="82" fill="#38bdf8" font-family="Inter, sans-serif" font-size="11">• Hadamard (H): Superposition</text>
-    <text x="14" y="102" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Pauli-X: Quantum NOT gate</text>
-    <text x="14" y="122" fill="#a78bfa" font-family="Inter, sans-serif" font-size="11">• CNOT: Entangles 2 Qubits</text>
-    <text x="14" y="146" fill="#f8fafc" font-family="monospace" font-size="11">Bell State: (|00⟩+|11⟩)/√2</text>
-    <text x="14" y="170" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Interference cancels noise</text>
-    <text x="14" y="195" fill="#ec4899" font-family="Inter, sans-serif" font-size="11">Amplifies Correct Answer</text>
-  </g>
-
-  <!-- Connection Arrow 2 -->
-  <path d="M 505 190 L 535 190" stroke="#ec4899" stroke-width="3" stroke-dasharray="4"/>
-
-  <!-- Step 3: Cryogenic QPU & Measurement -->
-  <g transform="translate(545, 85)">
-    <rect width="180" height="215" rx="14" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
-    <rect width="180" height="32" rx="12" fill="url(#qGrad3)"/>
-    <text x="90" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">3. QPU &amp; READOUT</text>
-    <text x="14" y="58" fill="#34d399" font-family="monospace" font-size="12">Cryogenic: 15 mK</text>
-    <text x="14" y="82" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Dilution Refrigerator</text>
-    <text x="14" y="102" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Microwave pulse control</text>
-    <text x="14" y="122" fill="#fcd34d" font-family="Inter, sans-serif" font-size="11">• Wavefunction collapse</text>
-    <text x="14" y="146" fill="#38bdf8" font-family="monospace" font-size="11">Measure ➔ |0⟩ or |1⟩</text>
-    <text x="14" y="170" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Sampling across shots</text>
-    <text x="14" y="195" fill="#10b981" font-family="Inter, sans-serif" font-size="11">Classical Histogram Out</text>
-  </g>
-
-  <!-- Bottom Insight -->
-  <rect x="45" y="315" width="680" height="45" rx="12" fill="rgba(15,23,42,0.9)" stroke="rgba(255,255,255,0.1)"/>
-  <text x="65" y="342" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">💡 Core Takeaway:</text>
-  <text x="180" y="342" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="12">Quantum machines compute by rotating state vectors in Hilbert space, evaluating vast solution spaces simultaneously.</text>
-</svg>"""
-        elif "function" in p_lower:
-            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" width="760" height="380">
-  <defs>
-    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#080e21"/>
-      <stop offset="100%" stop-color="#111c38"/>
-    </linearGradient>
-  </defs>
-  <rect width="760" height="380" rx="20" fill="url(#bgGrad2)" stroke="rgba(255,255,255,0.1)"/>
-  <rect x="25" y="20" width="710" height="42" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(139,92,246,0.3)"/>
-  <text x="40" y="47" fill="#a78bfa" font-family="Outfit, sans-serif" font-size="16" font-weight="bold">✦ FUNCTION CALL STACK &amp; EXECUTION PIPELINE</text>
-  <text x="715" y="46" text-anchor="end" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">Inputs ➔ Frame Scope ➔ Return Pipeline</text>
-
-  <!-- Step 1: Input Arguments -->
-  <g transform="translate(45, 90)">
-    <rect width="180" height="190" rx="12" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
-    <rect width="180" height="32" rx="10" fill="#2563eb"/>
-    <text x="90" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">1. ARGUMENTS (Input)</text>
-    <text x="16" y="60" fill="#f8fafc" font-family="monospace" font-size="12">def calculate(a, b):</text>
-    <text x="16" y="90" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Parameters passed</text>
-    <text x="16" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Positional / keyword</text>
-    <text x="16" y="134" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Default args evaluated</text>
-    <text x="16" y="165" fill="#38bdf8" font-family="monospace" font-size="11">calculate(10, 5)</text>
-  </g>
-
-  <!-- Flow 1 -->
-  <path d="M 235 185 L 275 185" stroke="#38bdf8" stroke-width="3" stroke-dasharray="4"/>
-
-  <!-- Step 2: Function Stack Frame -->
-  <g transform="translate(285, 90)">
-    <rect width="190" height="190" rx="12" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
-    <rect width="190" height="32" rx="10" fill="#7c3aed"/>
-    <text x="95" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">2. LOCAL STACK FRAME</text>
-    <text x="16" y="60" fill="#c084fc" font-family="monospace" font-size="12">result = a * 2 + b</text>
-    <text x="16" y="90" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Isolated local scope</text>
-    <text x="16" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Local vars created</text>
-    <text x="16" y="134" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Logic executed</text>
-    <text x="16" y="165" fill="#34d399" font-family="monospace" font-size="11">Frame destroyed on exit</text>
-  </g>
-
-  <!-- Flow 2 -->
-  <path d="M 485 185 L 525 185" stroke="#34d399" stroke-width="3" stroke-dasharray="4"/>
-
-  <!-- Step 3: Return Output -->
-  <g transform="translate(535, 90)">
-    <rect width="180" height="190" rx="12" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
-    <rect width="180" height="32" rx="10" fill="#059669"/>
-    <text x="90" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">3. RETURN VALUE (Output)</text>
-    <text x="16" y="60" fill="#34d399" font-family="monospace" font-size="12">return result</text>
-    <text x="16" y="90" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Sent back to caller</text>
-    <text x="16" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Can return tuple/dict</text>
-    <text x="16" y="134" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• None returned if omitted</text>
-    <text x="16" y="165" fill="#facc15" font-family="monospace" font-size="11">output = 25</text>
-  </g>
-
-  <!-- Bottom Insight -->
-  <rect x="45" y="300" width="670" height="50" rx="12" fill="rgba(15,23,42,0.9)" stroke="rgba(255,255,255,0.1)"/>
-  <text x="65" y="330" fill="#a78bfa" font-family="Outfit, sans-serif" font-size="13" font-weight="bold">🎯 Clean Architecture Principle:</text>
-  <text x="270" y="330" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="12">Functions are modular black boxes: predictable inputs in, clean transformed outputs out.</text>
-</svg>"""
-        elif "loop" in p_lower:
-            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" width="760" height="360">
-  <defs>
-    <linearGradient id="bgGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#080e21"/>
-      <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-  </defs>
-  <rect width="760" height="360" rx="20" fill="url(#bgGrad3)" stroke="rgba(255,255,255,0.1)"/>
-  <rect x="25" y="20" width="710" height="42" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(6,182,212,0.3)"/>
-  <text x="40" y="47" fill="#22d3ee" font-family="Outfit, sans-serif" font-size="16" font-weight="bold">✦ LOOP CONTROL FLOW &amp; ITERATION LIFECYCLE</text>
-  <text x="715" y="46" text-anchor="end" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">Sequence ➔ Condition ➔ Body ➔ Next</text>
-
-  <!-- Step 1: Start -->
-  <circle cx="90" cy="170" r="35" fill="#0284c7" stroke="#38bdf8" stroke-width="2"/>
-  <text x="90" y="175" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-weight="bold" font-size="12">START</text>
-
-  <path d="M 125 170 L 195 170" stroke="#38bdf8" stroke-width="2"/>
-
-  <!-- Step 2: Condition Diamond -->
-  <polygon points="280,105 365,170 280,235 195,170" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
-  <text x="280" y="165" text-anchor="middle" fill="#fcd34d" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">Condition</text>
-  <text x="280" y="180" text-anchor="middle" fill="#fcd34d" font-family="Outfit, sans-serif" font-size="11">True?</text>
-
-  <!-- True path -->
-  <path d="M 365 170 L 440 170" stroke="#10b981" stroke-width="2"/>
-  <text x="400" y="160" fill="#34d399" font-family="sans-serif" font-size="11" font-weight="bold">YES</text>
-
-  <!-- Step 3: Loop Body -->
-  <rect x="440" y="130" width="160" height="80" rx="12" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
-  <text x="520" y="160" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">Execute Loop Body</text>
-  <text x="520" y="180" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="11">print(item) / update</text>
-
-  <!-- Cycle back arrow -->
-  <path d="M 520 130 L 520 85 L 280 85 L 280 105" fill="none" stroke="#22d3ee" stroke-width="2" stroke-dasharray="4"/>
-  <text x="400" y="75" text-anchor="middle" fill="#22d3ee" font-family="sans-serif" font-size="10">Next Iteration</text>
-
-  <!-- False path (Exit) -->
-  <path d="M 280 235 L 280 290 L 630 290" fill="none" stroke="#ef4444" stroke-width="2"/>
-  <text x="295" y="260" fill="#f87171" font-family="sans-serif" font-size="11" font-weight="bold">NO (Done)</text>
-
-  <!-- Step 4: Finish -->
-  <circle cx="665" cy="290" r="30" fill="#dc2626" stroke="#f87171" stroke-width="2"/>
-  <text x="665" y="295" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-weight="bold" font-size="11">EXIT</text>
-</svg>"""
-        else:
-            clean_title = re.sub(r'[^a-zA-Z0-9 ]', '', prompt).strip()[:40].title() or "Concept Architecture"
-            svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" width="760" height="360">
-  <defs>
-    <linearGradient id="bgGradGen" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#080e21"/>
-      <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-  </defs>
-  <rect width="760" height="360" rx="20" fill="url(#bgGradGen)" stroke="rgba(255,255,255,0.1)"/>
-  
-  <!-- Title Header -->
-  <rect x="25" y="20" width="710" height="46" rx="12" fill="rgba(255,255,255,0.04)" stroke="rgba(56,189,248,0.3)"/>
-  <text x="45" y="50" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="16" font-weight="bold">✦ CONCEPT SYSTEM ARCHITECTURE: {clean_title.upper()}</text>
-  <text x="715" y="49" text-anchor="end" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">Sastra AI Concept Studio</text>
-
-  <!-- Stage 1: Input / Foundation -->
-  <g transform="translate(45, 90)">
-    <rect width="190" height="170" rx="14" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
-    <rect width="190" height="32" rx="12" fill="#2563eb"/>
-    <text x="95" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">PHASE 1: FOUNDATION</text>
-    <text x="16" y="65" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">Prerequisites &amp; Data</text>
-    <text x="16" y="90" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Core definitions</text>
-    <text x="16" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Input parameters</text>
-    <text x="16" y="134" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Initial state baseline</text>
-  </g>
-
-  <!-- Arrow 1 -->
-  <path d="M 245 175 L 285 175" stroke="#38bdf8" stroke-width="3" stroke-dasharray="4"/>
-
-  <!-- Stage 2: Processing & Transformation -->
-  <g transform="translate(295, 90)">
-    <rect width="190" height="170" rx="14" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
-    <rect width="190" height="32" rx="12" fill="#7c3aed"/>
-    <text x="95" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">PHASE 2: MECHANICS</text>
-    <text x="16" y="65" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">Execution Logic</text>
-    <text x="16" y="90" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Algorithmic steps</text>
-    <text x="16" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• State transformations</text>
-    <text x="16" y="134" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Edge case boundaries</text>
-  </g>
-
-  <!-- Arrow 2 -->
-  <path d="M 495 175 L 535 175" stroke="#10b981" stroke-width="3" stroke-dasharray="4"/>
-
-  <!-- Stage 3: Outcome & Mastery -->
-  <g transform="translate(545, 90)">
-    <rect width="180" height="170" rx="14" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
-    <rect width="180" height="32" rx="12" fill="#059669"/>
-    <text x="90" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">PHASE 3: OUTCOME</text>
-    <text x="16" y="65" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">System Verification</text>
-    <text x="16" y="90" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Output delivery</text>
-    <text x="16" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Metric evaluation</text>
-    <text x="16" y="134" fill="#94a3b8" font-family="Inter, sans-serif" font-size="11">• Real-world usage</text>
-  </g>
-
-  <!-- Footer Guidance -->
-  <rect x="45" y="280" width="680" height="56" rx="12" fill="rgba(15,23,42,0.9)" stroke="rgba(255,255,255,0.1)"/>
-  <text x="65" y="312" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">💡 Study Guide:</text>
-  <text x="160" y="312" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="12">Master each tier sequentially: establish the prerequisites before debugging runtime mechanics.</text>
-</svg>"""
-        
         b64_svg = base64.b64encode(svg.encode("utf-8")).decode("utf-8")
         data_uri = f"data:image/svg+xml;base64,{b64_svg}"
         return {
@@ -911,6 +452,7 @@ class ImageGenerator:
             "mode": "educational_diagram",
             "provider": "educational_vector_engine"
         }
+
 
 
 # Singleton instance

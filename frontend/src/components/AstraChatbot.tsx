@@ -29,6 +29,7 @@ import {
   Download,
   Maximize2,
   Sparkles,
+  Table as TableIcon,
 } from 'lucide-react';
 
 interface Message {
@@ -46,7 +47,7 @@ interface Message {
 
 const MODES = [
   { id: 'learn', label: 'Learn', icon: BookOpen, desc: 'Adaptive tutoring' },
-  { id: 'image', label: 'Study Visuals', icon: ImageIcon, desc: 'Educational Concept Diagrams' },
+  { id: 'image', label: 'Visual & Table', icon: TableIcon, desc: 'Vector Concept Diagrams & Tables' },
   { id: 'notes', label: 'Study Notes & PDF', icon: FileText, desc: 'Synthesize & PDF Export' },
   { id: 'socratic', label: 'Socratic', icon: HelpCircle, desc: 'Guiding dialogue' },
   { id: 'quiz', label: 'Quiz', icon: CheckCircle2, desc: 'Interactive testing' },
@@ -101,6 +102,137 @@ const renderFormattedInline = (text: string) => {
   }
 
   return parts;
+};
+
+interface ParsedBlock {
+  type: 'paragraph' | 'heading' | 'bullet' | 'code' | 'table';
+  content?: string;
+  lang?: string;
+  headers?: string[];
+  rows?: string[][];
+}
+
+const parseStructuredContent = (rawText: string): ParsedBlock[] => {
+  const blocks: ParsedBlock[] = [];
+  const lines = rawText.split('\n');
+  let i = 0;
+
+  while (i < lines.length) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
+
+    // 1. Code Block
+    if (trimmed.startsWith('```')) {
+      const lang = trimmed.replace(/^```/, '').trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++; // Skip closing ```
+      blocks.push({
+        type: 'code',
+        lang: lang || 'text',
+        content: codeLines.join('\n'),
+      });
+      continue;
+    }
+
+    // 2. Markdown Table Detection
+    // Check if current line has '|' and next line is a separator row like '|---|---|' or '|:---|:---|'
+    if (
+      trimmed.includes('|') &&
+      i + 1 < lines.length &&
+      /^\s*\|?\s*[-:]+\s*\|/.test(lines[i + 1])
+    ) {
+      const parseCells = (rowStr: string) => {
+        let clean = rowStr.trim();
+        if (clean.startsWith('|')) clean = clean.substring(1);
+        if (clean.endsWith('|')) clean = clean.substring(0, clean.length - 1);
+        return clean.split('|').map((c) => c.trim());
+      };
+
+      const headers = parseCells(rawLine);
+      i += 2; // skip header and separator row
+
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].trim().includes('|')) {
+        const rowCells = parseCells(lines[i]);
+        if (rowCells.length > 0 && rowCells.some((c) => c.length > 0)) {
+          rows.push(rowCells);
+        }
+        i++;
+      }
+
+      blocks.push({
+        type: 'table',
+        headers,
+        rows,
+      });
+      continue;
+    }
+
+    // 3. Headings
+    if (
+      trimmed.startsWith('## ') ||
+      trimmed.startsWith('### ') ||
+      trimmed.startsWith('✦ ') ||
+      trimmed.startsWith('◈ ') ||
+      trimmed.startsWith('❖ ') ||
+      trimmed.startsWith('🎬 ') ||
+      trimmed.startsWith('🧠 ') ||
+      trimmed.startsWith('🌿 ') ||
+      trimmed.startsWith('⚡ ') ||
+      trimmed.startsWith('🧪 ') ||
+      trimmed.startsWith('🎯 ') ||
+      trimmed.startsWith('💎 ') ||
+      trimmed.startsWith('📌 ')
+    ) {
+      const headingText = trimmed.replace(/^#+\s*/, '');
+      blocks.push({
+        type: 'heading',
+        content: headingText,
+      });
+      i++;
+      continue;
+    }
+
+    // 4. Bullet lists
+    if (
+      trimmed.startsWith('• ') ||
+      trimmed.startsWith('❯ ') ||
+      trimmed.startsWith('- ') ||
+      trimmed.startsWith('* ')
+    ) {
+      const bulletText = trimmed.replace(/^[•❯\-*]\s*/, '');
+      blocks.push({
+        type: 'bullet',
+        content: bulletText,
+      });
+      i++;
+      continue;
+    }
+
+    // 5. Empty spacer
+    if (!trimmed) {
+      blocks.push({
+        type: 'paragraph',
+        content: '',
+      });
+      i++;
+      continue;
+    }
+
+    // 6. Regular Paragraph
+    blocks.push({
+      type: 'paragraph',
+      content: rawLine,
+    });
+    i++;
+  }
+
+  return blocks;
 };
 
 export const AstraChatbot: React.FC<{
@@ -470,22 +602,6 @@ export const AstraChatbot: React.FC<{
       const data = await res.json();
 
       let botImage = data.image;
-      // Fallback: If image was requested but backend didn't return one in /api/chat, query /api/image/generate
-      if (isImageGenRequest && !botImage) {
-        try {
-          const imgRes = await fetchWithFallback('/api/image/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: textToSend, user_name: currentName }),
-          });
-          if (imgRes.ok) {
-            const imgData = await imgRes.json();
-            botImage = imgData.url;
-          }
-        } catch (e) {
-          console.error('Image generation fallback error:', e);
-        }
-      }
 
       const botMsg: Message = {
         id: `bot-${Date.now()}`,
@@ -950,57 +1066,105 @@ export const AstraChatbot: React.FC<{
 
                       {/* Text content with rich formatting & zero raw markdown asterisks */}
                       <div className="font-sans space-y-1 pr-14 text-[14px]">
-                        {msg.content.split('\n').map((rawLine, idx) => {
-                          const line = rawLine.trim();
-                          if (!line) {
-                            return <div key={idx} className="h-1" />;
+                        {parseStructuredContent(msg.content).map((block, bIdx) => {
+                          if (block.type === 'table' && block.headers && block.rows) {
+                            return (
+                              <div
+                                key={bIdx}
+                                className="my-3.5 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white shadow-xs"
+                              >
+                                <table className="w-full text-left text-[13px] border-collapse min-w-[340px]">
+                                  <thead>
+                                    <tr className="bg-gradient-to-r from-slate-100 to-indigo-50/40 text-slate-800 border-b border-slate-200">
+                                      {block.headers.map((h, hIdx) => (
+                                        <th
+                                          key={hIdx}
+                                          className="px-4 py-3 font-semibold text-slate-900 border-r border-slate-200/60 last:border-r-0"
+                                        >
+                                          {renderFormattedInline(h)}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {block.rows.map((row, rIdx) => (
+                                      <tr
+                                        key={rIdx}
+                                        className={
+                                          rIdx % 2 === 1
+                                            ? 'bg-slate-50/50 hover:bg-blue-50/40 transition-colors'
+                                            : 'bg-white hover:bg-blue-50/40 transition-colors'
+                                        }
+                                      >
+                                        {row.map((cell, cIdx) => (
+                                          <td
+                                            key={cIdx}
+                                            className="px-4 py-2.5 text-slate-700 leading-relaxed border-r border-slate-100 last:border-r-0"
+                                          >
+                                            {renderFormattedInline(cell)}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            );
                           }
-                          if (
-                            line.startsWith('## ') ||
-                            line.startsWith('### ') ||
-                            line.startsWith('✦ ') ||
-                            line.startsWith('◈ ') ||
-                            line.startsWith('❖ ') ||
-                            line.startsWith('🎬 ') ||
-                            line.startsWith('🧠 ') ||
-                            line.startsWith('🌿 ') ||
-                            line.startsWith('⚡ ') ||
-                            line.startsWith('🧪 ') ||
-                            line.startsWith('🎯 ') ||
-                            line.startsWith('💎 ') ||
-                            line.startsWith('📌 ')
-                          ) {
-                            const headingText = line.replace(/^#+\s*/, '');
+
+                          if (block.type === 'code') {
+                            return (
+                              <div
+                                key={bIdx}
+                                className="my-3 overflow-hidden rounded-xl border border-slate-800 bg-[#0d1424] shadow-md"
+                              >
+                                <div className="flex items-center justify-between px-3.5 py-1.5 bg-[#080d19] border-b border-slate-800 text-[11px] text-slate-400 font-mono">
+                                  <span>{block.lang || 'code'}</span>
+                                  <button
+                                    onClick={() => copyToClipboard(block.content || '', `code-${bIdx}`)}
+                                    className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                  >
+                                    <Copy className="w-3 h-3" /> Copy
+                                  </button>
+                                </div>
+                                <pre className="p-3.5 overflow-x-auto text-[13px] font-mono text-emerald-300 leading-relaxed">
+                                  <code>{block.content}</code>
+                                </pre>
+                              </div>
+                            );
+                          }
+
+                          if (block.type === 'heading') {
                             return (
                               <h3
-                                key={idx}
+                                key={bIdx}
                                 className="font-display font-semibold text-[15px] text-[#0a1b33] mt-3.5 mb-1 flex items-center gap-1.5"
                               >
-                                {renderFormattedInline(headingText)}
+                                {renderFormattedInline(block.content || '')}
                               </h3>
                             );
                           }
-                          if (
-                            line.startsWith('• ') ||
-                            line.startsWith('❯ ') ||
-                            line.startsWith('- ') ||
-                            line.startsWith('* ')
-                          ) {
-                            const bulletText = line.replace(/^[•❯\-*]\s*/, '');
+
+                          if (block.type === 'bullet') {
                             return (
-                              <div key={idx} className="flex items-start gap-2 my-1 pl-0.5">
+                              <div key={bIdx} className="flex items-start gap-2 my-1 pl-0.5">
                                 <span className="text-blue-500 font-bold text-xs mt-0.5 shrink-0">
                                   ❯
                                 </span>
                                 <div className="text-[#0a1b33] leading-relaxed">
-                                  {renderFormattedInline(bulletText)}
+                                  {renderFormattedInline(block.content || '')}
                                 </div>
                               </div>
                             );
                           }
+
+                          if (!block.content) {
+                            return <div key={bIdx} className="h-1" />;
+                          }
+
                           return (
-                            <p key={idx} className="my-1 leading-relaxed text-[#0a1b33]">
-                              {renderFormattedInline(rawLine)}
+                            <p key={bIdx} className="my-1 leading-relaxed text-[#0a1b33]">
+                              {renderFormattedInline(block.content)}
                             </p>
                           );
                         })}
