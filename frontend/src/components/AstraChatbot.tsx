@@ -52,7 +52,7 @@ const MODES = [
   { id: 'notes', label: 'Study Notes & PDF', icon: FileText, desc: 'Complete PDF study & step-by-step notes' },
   { id: 'socratic', label: 'Socratic', icon: HelpCircle, desc: 'Guiding dialogue' },
   { id: 'quiz', label: 'Quiz', icon: CheckCircle2, desc: 'Quick concept check (simple & direct)' },
-  { id: 'code', label: 'Code Debug', icon: Code2, desc: 'Analysis & fixes' },
+  { id: 'code', label: 'Code Debug', icon: Code2, desc: 'Identify errors, explain, fix & show output' },
   { id: 'math', label: 'Math Solver', icon: Calculator, desc: 'Step-by-step logic' },
   { id: 'path', label: 'Learning Path', icon: Compass, desc: 'Curriculum roadmap' },
   { id: 'revise', label: 'Flashcards', icon: Layers, desc: 'Active recall' },
@@ -1468,6 +1468,8 @@ export const AstraChatbot: React.FC<{
                       ? 'Enter a topic for a quick quiz (e.g. "Cloud Computing", "Python")...'
                       : activeMode === 'notes'
                       ? 'Upload PDF or enter topic for complete step-by-step study notes & PDF export...'
+                      : activeMode === 'code'
+                      ? 'Paste code or describe an error to identify bugs, explain, fix & show output...'
                       : activeMode
                       ? `Ask Sastra (${activeMode} mode)...`
                       : 'Ask anything, generate PDF guides, upload documents, or test knowledge...'
