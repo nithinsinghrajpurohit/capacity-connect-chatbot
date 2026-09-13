@@ -50,7 +50,7 @@ const MODES = [
   { id: 'image', label: 'Visual & Table', icon: TableIcon, desc: 'Vector Concept Diagrams & Tables' },
   { id: 'notes', label: 'Study Notes & PDF', icon: FileText, desc: 'Synthesize & PDF Export' },
   { id: 'socratic', label: 'Socratic', icon: HelpCircle, desc: 'Guiding dialogue' },
-  { id: 'quiz', label: 'Quiz', icon: CheckCircle2, desc: 'Interactive testing' },
+  { id: 'quiz', label: 'Quiz', icon: CheckCircle2, desc: 'Quick concept check (simple & direct)' },
   { id: 'code', label: 'Code Debug', icon: Code2, desc: 'Analysis & fixes' },
   { id: 'math', label: 'Math Solver', icon: Calculator, desc: 'Step-by-step logic' },
   { id: 'path', label: 'Learning Path', icon: Compass, desc: 'Curriculum roadmap' },
@@ -1451,6 +1451,8 @@ export const AstraChatbot: React.FC<{
                       ? 'Enter a topic for quick definition & example (e.g. "Photosynthesis", "Variables")...'
                       : activeMode === 'image'
                       ? 'Prompt a diagram to draw (e.g. "Draw a diagram of Photosynthesis")...'
+                      : activeMode === 'quiz'
+                      ? 'Enter a topic for a quick quiz (e.g. "Cloud Computing", "Python")...'
                       : activeMode === 'notes'
                       ? 'Topic to synthesize into downloadable PDF study notes...'
                       : activeMode

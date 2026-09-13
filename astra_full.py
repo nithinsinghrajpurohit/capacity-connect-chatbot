@@ -880,16 +880,16 @@ def topic_quiz_turn(message, tk, sk):
             "ans": "B",
             "exp": "Modular decomposition and clear interface contracts allow components to be developed, tested, and scaled independently."
         }
-    opts_fmt = "\n".join(f"❯ {letter}) {opt}" for letter, opt in zip(["A", "B", "C", "D"], q_data["opts"]))
+    opts_fmt = "\n".join(f"> ✦ Option {letter}: {opt}" for letter, opt in zip(["A", "B", "C", "D"], q_data["opts"]))
     reply = (
-        f"✦ Interactive Concept Check\n\n"
-        f"◈ Question:\n{q_data['q']}\n\n"
+        f"✦ Quiz: {topic_title}\n\n"
+        f"{q_data['q']}\n\n"
         f"{opts_fmt}\n\n"
-        f"💡 Reply with A, B, C, or D to check your answer and view the explanation!"
+        f"🎯 Select your answer below:"
     )
     return {
         "reply": reply,
-        "suggestions": ["Option A", "Option B", "Option C", "Option D", "Explain topic simply 🌿"]
+        "suggestions": ["Option A", "Option B", "Option C", "Option D"]
     }
 def repair_misconception(message):
     return ("You're close — there's one specific gap. Let's rebuild from a simpler foundation:\n\n"
@@ -986,28 +986,25 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     # Scenario A: The user is answering an active quiz question from conversation history!
     if choice and last_quiz_msg:
         eval_prompt = (
-            f"The learner {u_name} is answering this multiple-choice quiz question:\n\n"
-            f"--- PREVIOUS QUIZ QUESTION ---\n{last_quiz_msg}\n------------------------------\n\n"
-            f"LEARNER'S ANSWER: Option {choice} (Learner typed: '{message}').\n\n"
-            f"Evaluate their answer thoroughly and encouragingly:\n"
-            f"1. State clearly whether Option {choice} is CORRECT or INCORRECT.\n"
-            f"2. Provide a clear, step-by-step trace or breakdown demonstrating why the correct answer is right.\n"
-            f"3. Explain what the other options represent and why they are incorrect distractors.\n"
-            f"4. Give an encouraging takeaway to {u_name} and ask if they are ready for the next challenge.\n"
-            f"Use clean emojis (✦, ◈, ❖, 📌, 🎯, 💡) and bullet points. Do NOT output raw markdown double asterisks (**)."
+            f"The learner is answering this quiz question:\n\n"
+            f"{last_quiz_msg}\n\n"
+            f"LEARNER'S ANSWER: Option {choice} (Learner message: '{message}').\n\n"
+            f"CRITICAL REQUIREMENT — KEEP EVALUATION SIMPLE & CONCISE (LESS CONTENT):\n"
+            f"1. State clearly: ✅ Correct! Option {choice} is right. OR ❌ Incorrect. The correct answer is Option <Correct Letter>.\n"
+            f"2. Give 1 to 2 clear, brief sentences explaining why the correct answer is right.\n"
+            f"3. Prompt: Ready for the next question? Click below!\n"
+            f"STRICT: Under 40 words total. No long essays. Do NOT output raw markdown double asterisks (**)."
         )
-        llm_reply = _llm_respond(eval_prompt, context, history, page_ctx, "quiz")
+        llm_reply = _llm_respond(eval_prompt, context, None, page_ctx, "quiz")
         if not llm_reply:
             llm_reply = (
-                f"✦ Quiz Evaluation — Your Selection: Option {choice}\n\n"
-                f"◈ Step-by-Step Review:\n"
-                f"Great job putting your reasoning to work! Tracing execution step-by-step guarantees mastery of underlying code mechanics.\n\n"
-                f"💡 Next Step: Select another challenge below to keep testing your skills with your friends!"
+                f"✦ Quiz Evaluation — Option {choice}\n\n"
+                f"Great job putting your knowledge to work! Select another challenge below to keep practicing."
             )
         return {
             "reply": llm_reply,
             "mode": "quiz",
-            "suggestions": ["Next Question 🎯", "Explain this topic simply 🌿", "Draw study diagram 🎨", "Download PDF study guide 📄"]
+            "suggestions": ["Next Question 🎯", "Explain this topic simply 🌿", "Take another Quiz 💡"]
         }
 
     # Scenario B: User typed "option c", "Option B" explicitly but no prior question is in recent history
@@ -1199,8 +1196,9 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
         r"^(?:make it|remix|style|theme:?)\s+(?:photorealistic|cyberpunk|3d|anime|ghibli|pixar|cinematic|oil painting|watercolor)",
         r"^(?:photorealistic|cyberpunk neon|3d pixar|studio ghibli|anime / manga)\b"
     ]
+    is_remix_request = bool(re.search(r"\b(photorealistic|cyberpunk|neon|3d pixar|anime|ghibli|pixar|cinematic|oil painting|watercolor)\b", message, re.I)) and any(k in message.lower() for k in ("make it", "theme", "style", "animation"))
     is_img_req = (
-        explicit_mode != "learn" and (
+        explicit_mode not in ("learn", "quiz") and (
             mode == "image" or explicit_mode in ("image", "diagram") or is_remix_request or any(re.search(pat, message.strip(), re.IGNORECASE) for pat in img_triggers)
         )
     ) or (message.strip().startswith("@image") or message.strip().startswith("@create image"))
@@ -1414,26 +1412,35 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     # ─────────────────────────────────────────────────────────────────────────────
     if mode == "quiz":
         target_quiz_topic = concept_query if is_pure_quiz else message
+        clean_quiz_topic = extract_clean_concept_title(target_quiz_topic) or target_quiz_topic.strip().rstrip("?").title() or "Core Knowledge"
         quiz_prompt = (
-            f"Generate an engaging, high-quality multiple-choice quiz question (MCQ) to test the learner {u_name}'s knowledge on: '{target_quiz_topic}'.\n\n"
-            f"Requirements:\n"
-            f"1. Provide a clear question with a concise code snippet or scenario if relevant.\n"
-            f"2. Provide exactly 4 options formatted clearly as:\n"
+            f"Generate a SIMPLE, DIRECT multiple-choice quiz question (MCQ) on: '{clean_quiz_topic}'.\n\n"
+            f"CRITICAL REQUIREMENTS — KEEP IT SIMPLE (LESS CONTENT):\n"
+            f"1. A direct 1-sentence question asking about the concept. Do NOT write story scenarios, setup paragraphs, or background preamble.\n"
+            f"2. Exactly 4 concise options:\n"
             f"> ✦ Option A: ...\n"
             f"> ✦ Option B: ...\n"
             f"> ✦ Option C: ...\n"
             f"> ✦ Option D: ...\n"
-            f"3. Do NOT reveal the correct answer or explanation yet. Invite the learner to drop their answer (A, B, C, or D).\n"
-            f"4. Do NOT output raw markdown double asterisks (**)."
+            f"3. Short instruction: '🎯 Select your answer below:'\n"
+            f"4. Format strictly:\n"
+            f"✦ Quiz: {clean_quiz_topic}\n\n"
+            f"<1-sentence question>\n\n"
+            f"> ✦ Option A: <text>\n"
+            f"> ✦ Option B: <text>\n"
+            f"> ✦ Option C: <text>\n"
+            f"> ✦ Option D: <text>\n\n"
+            f"🎯 Select your answer below:\n"
+            f"Do NOT output raw markdown double asterisks (**)."
         )
-        llm_reply = _llm_respond(quiz_prompt, context, history, extra, "quiz")
+        llm_reply = _llm_respond(quiz_prompt, context, None, extra, "quiz")
         if llm_reply:
             return {
                 "reply": llm_reply,
                 "mode": "quiz",
                 "suggestions": ["Option A", "Option B", "Option C", "Option D"]
             }
-        quiz_res = topic_quiz_turn(target_quiz_topic, tk, sk)
+        quiz_res = topic_quiz_turn(clean_quiz_topic, tk, sk)
         return {"reply": quiz_res["reply"], "mode": mode, "suggestions": ["Option A", "Option B", "Option C", "Option D"]}
 
     # ─────────────────────────────────────────────────────────────────────────────

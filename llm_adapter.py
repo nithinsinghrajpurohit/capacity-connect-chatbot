@@ -234,7 +234,7 @@ class GeminiAdapter(LLMAdapter):
                 return self.fallback_adapter.generate(system_prompt, user_message, history, image_data, audio_data)
             return None
         
-        if "LEARN MODE GUIDELINES" in system_prompt:
+        if "LEARN MODE GUIDELINES" in system_prompt or "QUIZ MODE GUIDELINES" in system_prompt:
             sys_inst = system_prompt
         else:
             sys_inst = (
