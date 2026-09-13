@@ -27,6 +27,9 @@ import {
   VolumeX,
   Paperclip,
   Camera,
+  Download,
+  Maximize2,
+  Sparkles,
 } from 'lucide-react';
 
 interface Message {
@@ -45,7 +48,7 @@ interface Message {
 const MODES = [
   { id: 'learn', label: 'Learn', icon: BookOpen, desc: 'Adaptive tutoring' },
   { id: 'deep', label: 'Deep Explanations', icon: Flame, desc: '11-section mastery' },
-  { id: 'image', label: 'AI Diagrams', icon: ImageIcon, desc: 'Visual Concept Generator' },
+  { id: 'image', label: 'AI Image & Art', icon: ImageIcon, desc: 'Neural Text-to-Image & Blueprints' },
   { id: 'notes', label: 'Study Notes & PDF', icon: FileText, desc: 'Synthesize & PDF Export' },
   { id: 'socratic', label: 'Socratic', icon: HelpCircle, desc: 'Guiding dialogue' },
   { id: 'quiz', label: 'Quiz', icon: CheckCircle2, desc: 'Interactive testing' },
@@ -437,13 +440,13 @@ export const AstraChatbot: React.FC<{
       // 1. Check if Image / Diagram Generation Request
       const isImageGenRequest =
         activeMode === 'image' ||
-        /(?:@?(?:create|generate|show|draw|make|render)\s+(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic)|@?(?:image|diagram|illustrate|visualize)\b|\b(?:generate|create|draw)\s+(?:an?\s+)?(?:image|diagram|visual)\b)/i.test(
+        /(?:@?(?:create|generate|show|draw|make|render)\s+(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic|picture|wallpaper)|@?(?:image|diagram|illustrate|visualize)\b|\b(?:generate|create|draw)\s+(?:an?\s+)?(?:image|diagram|visual|photo|picture)\b|\b(?:make it photorealistic|cyberpunk neon|3d pixar|studio ghibli)\b)/i.test(
           textToSend
         );
 
       setLoadingStatus(
         isImageGenRequest
-          ? 'Generating high-definition visual diagram...'
+          ? 'Synthesizing neural AI visual imagery...'
           : sentImage
           ? 'Performing multimodal vision reasoning...'
           : 'Sastra formulating answer...'
@@ -900,13 +903,50 @@ export const AstraChatbot: React.FC<{
 
                       {/* Attached Image Preview */}
                       {msg.image && (
-                        <div className="mb-3 overflow-hidden rounded-2xl border border-slate-200/90 bg-[#070d1e] shadow-md p-1">
-                          <img
-                            src={msg.image}
-                            alt="Visual Concept Diagram"
-                            className="w-full h-auto max-h-[460px] object-contain rounded-xl block"
-                            loading="eager"
-                          />
+                        <div className="mb-3 overflow-hidden rounded-2xl border border-slate-700/60 bg-[#070d1e] shadow-xl p-1.5 transition-all">
+                          {/* Top Action & Badge Bar */}
+                          <div className="flex items-center justify-between px-3 py-1.5 mb-1.5 bg-slate-900/90 rounded-xl border border-slate-800 text-[11px]">
+                            <span className="flex items-center gap-1.5 font-semibold text-cyan-400">
+                              <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                              {msg.image.startsWith('data:image/svg')
+                                ? '📐 Educational Blueprint & Architecture'
+                                : '✦ AI Neural Visual Synthesis (1024×1024)'}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => {
+                                  const a = document.createElement('a');
+                                  a.href = msg.image!;
+                                  a.download = `sastra-ai-creation-${Date.now()}.${msg.image!.startsWith('data:image/svg') ? 'svg' : 'jpg'}`;
+                                  a.target = '_blank';
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  document.body.removeChild(a);
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 hover:text-white flex items-center gap-1 text-[11px] font-medium transition-colors"
+                                title="Download High-Resolution Visual"
+                              >
+                                <Download className="w-3 h-3" /> Download
+                              </button>
+                              <button
+                                onClick={() => window.open(msg.image, '_blank')}
+                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                                title="Open Fullscreen in New Tab"
+                              >
+                                <Maximize2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Rendered Image Canvas */}
+                          <div className="relative rounded-xl overflow-hidden bg-[#070d1e] flex items-center justify-center min-h-[160px]">
+                            <img
+                              src={msg.image}
+                              alt="AI Visual Synthesis"
+                              className="w-full h-auto max-h-[480px] object-contain rounded-xl block"
+                              loading="eager"
+                            />
+                          </div>
                         </div>
                       )}
 

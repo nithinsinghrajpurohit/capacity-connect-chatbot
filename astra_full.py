@@ -173,6 +173,36 @@ def extract_last_topic_from_history(history):
                 return clean
     return None
 
+def extract_last_image_prompt_from_history(history):
+    """Extracts the most recent user image generation prompt from conversation history for remixing."""
+    if not history:
+        return None
+    for turn in reversed(history):
+        # 1. Check assistant metadata or message quotation
+        if turn.get("role") == "assistant":
+            meta = turn.get("metadata")
+            if isinstance(meta, str):
+                try:
+                    meta = json.loads(meta)
+                except Exception:
+                    meta = {}
+            if isinstance(meta, dict) and meta.get("prompt"):
+                return meta.get("prompt")
+            m = re.search(r'based on your prompt:\s*"([^"]+)"', turn.get("message", ""))
+            if m:
+                return m.group(1).strip()
+
+        # 2. Check user turn
+        if turn.get("role") == "user":
+            txt = turn.get("message", "").strip()
+            clean = re.sub(r"[\U00010000-\U0010ffff\u2600-\u27bf\u2300-\u23ff]", "", txt).strip()
+            if re.search(r"\b(?:create|generate|show|draw|make|render|image|diagram|visual|photo|picture|wallpaper)\b", clean, re.I):
+                stripped = re.sub(r"^@?(?:create|generate|show|draw|make|render|image|diagram|illustrate|visualize)\s*(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic|picture|wallpaper)?\s*(?:of|for|about|:)?\s*", "", clean, flags=re.I).strip()
+                if stripped and len(stripped) >= 3 and not any(k in stripped.lower() for k in ("make it", "remix", "style", "theme", "photorealistic", "cyberpunk")):
+                    return stripped
+    return None
+
+
 def get_history(user_id, session_id, limit=8):
     if not user_id and not session_id:
         return []
@@ -1157,43 +1187,122 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
 
     # ── Image Generation / Diagram Synthesis Mode ──
     img_triggers = [
-        r"^@?(?:create|generate|show|draw|make|render)\s+(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic)",
+        r"^@?(?:create|generate|show|draw|make|render)\s+(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic|picture|wallpaper)",
         r"^@?(?:image|diagram|illustrate|visualize)\b",
-        r"\b(?:generate|create|draw)\s+(?:an?\s+)?(?:image|diagram|visual)\s+(?:of|for|about)\b"
+        r"\b(?:generate|create|draw)\s+(?:an?\s+)?(?:image|diagram|visual)\s+(?:of|for|about)\b",
+        r"^(?:make it|remix|style|theme:?)\s+(?:photorealistic|cyberpunk|3d|anime|ghibli|pixar|cinematic|oil painting|watercolor)",
+        r"^(?:photorealistic|cyberpunk neon|3d pixar|studio ghibli|anime / manga)\b"
     ]
-    is_img_req = mode == "image" or explicit_mode in ("image", "diagram") or any(re.search(pat, message.strip(), re.IGNORECASE) for pat in img_triggers)
+    is_remix_request = bool(re.search(r"\b(photorealistic|cyberpunk|neon|3d pixar|anime|ghibli|pixar|cinematic|oil painting|watercolor)\b", message, re.I)) and any(k in message.lower() for k in ("make it", "theme", "style", "animation"))
+    is_img_req = mode == "image" or explicit_mode in ("image", "diagram") or is_remix_request or any(re.search(pat, message.strip(), re.IGNORECASE) for pat in img_triggers)
+
     if is_img_req:
         try:
             from image_generator import get_image_generator
-            clean_prompt = re.sub(r"^@?(?:create|generate|show|draw|make|render|image|diagram|illustrate|visualize)\s*(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic)?\s*(?:of|for|about|:)?\s*", "", message.strip(), flags=re.IGNORECASE).strip()
+            clean_prompt = re.sub(r"^@?(?:create|generate|show|draw|make|render|image|diagram|illustrate|visualize)\s*(?:an?\s+)?(?:image|diagram|visual|illustration|roadmap|photo|graphic|picture|wallpaper)?\s*(?:of|for|about|:)?\s*", "", message.strip(), flags=re.IGNORECASE).strip()
+
+            # Handle style remixing from previous conversation
+            is_remixed = False
+            remix_style_label = ""
+            if is_remix_request or any(k in clean_prompt.lower() for k in ("make it photorealistic", "cyberpunk neon", "3d pixar", "studio ghibli")):
+                last_prompt = extract_last_image_prompt_from_history(history)
+                base_concept = last_prompt or active_topic or "futuristic digital art"
+
+                if "photoreal" in clean_prompt.lower():
+                    remix_style_label = "Photorealistic 8K"
+                    clean_prompt = f"{base_concept}, photorealistic 8k, shot on 35mm lens, realistic skin and textures, cinematic natural lighting"
+                    is_remixed = True
+                elif "cyberpunk" in clean_prompt.lower():
+                    remix_style_label = "Cyberpunk Neon"
+                    clean_prompt = f"{base_concept}, cyberpunk neon aesthetic, glowing holographic signs, rainy reflections, volumetric fog"
+                    is_remixed = True
+                elif "pixar" in clean_prompt.lower() or "3d" in clean_prompt.lower():
+                    remix_style_label = "3D Pixar Animation"
+                    clean_prompt = f"{base_concept}, 3D Pixar animation style, cute expressive character design, smooth lighting, octane render"
+                    is_remixed = True
+                elif "ghibli" in clean_prompt.lower() or "anime" in clean_prompt.lower():
+                    remix_style_label = "Studio Ghibli Anime"
+                    clean_prompt = f"{base_concept}, Studio Ghibli anime style, vibrant lush watercolor background, beautiful hand-drawn art"
+                    is_remixed = True
+
             # If pure image trigger without prompt, fallback to active concept
             if not clean_prompt or is_pure_img:
-                clean_prompt = concept_query or "Software Concepts and System Architecture"
+                clean_prompt = concept_query or "Futuristic Creative Artwork"
+
             # Strip emojis from prompt
             clean_prompt = re.sub(r"[\U00010000-\U0010ffff\u2600-\u27bf\u2300-\u23ff]", "", clean_prompt).strip()
+
             gen = get_image_generator()
             img_res = gen.generate_image(clean_prompt)
+            is_creative = img_res.get("mode") == "creative_image"
 
-            clean_title = extract_clean_concept_title(clean_prompt)
-            if not clean_title or len(clean_title.split()) > 4 or any(k in clean_title.lower() for k in ["image", "diagram", "visual", "roadmap", "photo", "all learning", "into one", "complete python", "if i see"]):
-                if "python" in clean_prompt.lower() or "python" in (active_topic or "").lower() or not active_topic:
-                    clean_title = "Python Complete Developer Roadmap"
+            if is_creative:
+                # Clean title for creative artwork
+                title_words = [w for w in re.sub(r'[^a-zA-Z0-9 ]', '', clean_prompt).split() if w.lower() not in ("a", "an", "the", "of", "in", "with", "on", "and", "for", "to", "by", "from", "at", "detailed", "sharp", "8k", "cinematic", "lighting", "resolution")]
+                clean_title = " ".join(title_words[:5]).title() if title_words else "Visual Artwork"
+
+                if is_remixed and remix_style_label:
+                    remix_notice = f"✨ Remixed into {remix_style_label} style based on your active concept!"
                 else:
-                    clean_title = f"{active_topic.title()} Architecture"
+                    remix_notice = f"I generated a high-definition neural visual based on your prompt: \"{clean_prompt}\"!"
 
-            reply_text = (
-                f"✦ {clean_title} — Visual Diagram Generated 🎨\n\n"
-                f"Here is your unified visual infographic mapping out the complete learning path, core architectural phases, and key milestones.\n\n"
-                f"💡 Ready to begin? Reply with 'Let\\'s start learning' or let me know which topic you'd like to explore first!"
-            )
-            reply_text = reply_text.replace("**", "")
+                reply_text = (
+                    f"✦ AI Image Synthesis: \"{clean_title}\" 🎨\n\n"
+                    f"{remix_notice}\n\n"
+                    f"◈ Visual Synthesis Breakdown:\n"
+                    f"• Prompt Subject: Accurately generated to reflect your exact instructions and fine details.\n"
+                    f"• Lighting & Ambiance: Rendered with dynamic illumination, atmospheric depth, and vibrant color balance.\n"
+                    f"• Canvas Specs: 1024×1024 high-resolution neural generation.\n\n"
+                    f"💡 Creative Iteration Tips for You & Your Friends:\n"
+                    f"• Photorealistic Style: Append \"photorealistic 8k, shot on 35mm lens, depth of field\"\n"
+                    f"• Cyberpunk / Sci-Fi: Append \"neon glow, rainy street reflections, futuristic sci-fi aesthetic\"\n"
+                    f"• 3D Animation: Append \"Pixar 3D animation style, cute character render, soft ambient occlusion\"\n"
+                    f"• Anime / Manga: Append \"Studio Ghibli style, vibrant watercolor, lush background\"\n"
+                    f"• Dramatic Cinematic: Append \"anamorphic lens flare, volumetric rays, epic scale\"\n\n"
+                    f"Click any style chip below to remix this image or type a new idea!"
+                )
+                reply_text = reply_text.replace("**", "")
 
-            return {
-                "reply": reply_text,
-                "image": img_res.get("url"),
-                "mode": "image",
-                "suggestions": ["Let's start learning 🚀", "Explain Phase 1: Syntax 🌿", "Take a quiz 🎯", "Download PDF study guide 📄"]
-            }
+                suggestions = [
+                    "Make it Photorealistic 📸",
+                    "Cyberpunk Neon Theme 🌌",
+                    "3D Pixar Animation Style ✨",
+                    "Studio Ghibli Anime Style 🖌️",
+                    "Try Another Prompt 🎨"
+                ]
+
+                return {
+                    "reply": reply_text,
+                    "image": img_res.get("url"),
+                    "mode": "image",
+                    "image_mode": "creative_image",
+                    "prompt": clean_prompt,
+                    "suggestions": suggestions
+                }
+            else:
+                # Educational concept blueprint / roadmap
+                clean_title = extract_clean_concept_title(clean_prompt)
+                if not clean_title or len(clean_title.split()) > 4 or any(k in clean_title.lower() for k in ["image", "diagram", "visual", "roadmap", "photo", "all learning", "into one", "complete python", "if i see"]):
+                    if "python" in clean_prompt.lower() or "python" in (active_topic or "").lower() or not active_topic:
+                        clean_title = "Python Complete Developer Roadmap"
+                    else:
+                        clean_title = f"{active_topic.title()} Architecture"
+
+                reply_text = (
+                    f"✦ {clean_title} — Visual Diagram & Blueprint 📐\n\n"
+                    f"Here is your unified visual infographic mapping out the complete learning path, core architectural phases, and key milestones.\n\n"
+                    f"💡 Ready to begin? Reply with 'Let\\'s start learning' or let me know which topic you'd like to explore first!"
+                )
+                reply_text = reply_text.replace("**", "")
+
+                return {
+                    "reply": reply_text,
+                    "image": img_res.get("url"),
+                    "mode": "image",
+                    "image_mode": "educational_diagram",
+                    "prompt": clean_prompt,
+                    "suggestions": ["Let's start learning 🚀", "Explain Phase 1: Syntax 🌿", "Take a quiz 🎯", "Download PDF study guide 📄"]
+                }
         except Exception as e:
             print(f"[Astra] Image generation trigger error: {e}")
 

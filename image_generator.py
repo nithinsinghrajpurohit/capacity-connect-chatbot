@@ -30,34 +30,69 @@ class ImageGenerator:
     def __init__(self):
         self.keys = [k for k in self.KEYS if k]
     
-    def generate_image(self, prompt, size="1024x1024", model="stable-diffusion"):
-        """Generate an educational concept diagram or neural visual illustration from prompt."""
+    def is_educational_diagram_request(self, prompt):
+        """Check if user is explicitly asking for a programmatic concept roadmap, flowchart, or architecture diagram."""
         p_lower = prompt.lower()
-        
-        # Check if the user is asking for a creative photorealistic rendering explicitly (e.g. "photo of a cat")
-        is_explicit_art = any(w in p_lower for w in ("realistic photo", "photograph", "scenery", "wallpaper", "painting", "portrait", "cat", "dog", "landscape", "avatar"))
+        diagram_cues = (
+            "roadmap", "road map", "curriculum", "syllabus", "learning path", "study path",
+            "flowchart", "flow chart", "architecture diagram", "uml", "wireframe",
+            "memory model", "call stack", "loop lifecycle", "data structure diagram",
+            "concept diagram", "concept architecture", "stack vs heap", "state diagram"
+        )
+        return any(cue in p_lower for cue in diagram_cues)
 
-        # For all educational concepts, programming topics, architectures, and diagrams:
-        # deliver the crystal-clear, high-definition SVG concept diagram directly!
-        if not is_explicit_art:
+    def generate_image(self, prompt, size="1024x1024", model="flux"):
+        """Generate an educational concept diagram or high-definition neural visual illustration from prompt."""
+        # 1. Check if user is asking for an educational curriculum / roadmap / computer science architectural blueprint
+        if self.is_educational_diagram_request(prompt):
             return self._generate_educational_diagram(prompt)
 
-        # High-Definition AI Neural Image Synthesis (Pollinations Flux / SDXL)
-        try:
-            enhanced_prompt = f"{prompt}, professional educational illustration, clean lighting, sharp focus, 8k"
-            encoded_prompt = urllib.parse.quote(enhanced_prompt.strip())
-            pollinations_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true"
-            return {
-                "type": "url",
-                "url": pollinations_url,
-                "prompt": prompt,
-                "provider": "ai_neural_renderer"
-            }
-        except Exception as e:
-            print(f"[ImageGen] Neural renderer fallback notice: {e}")
+        # 2. For all creative, artistic, scenic, character, sci-fi, and general visual prompts:
+        # Route to the AI Neural Text-to-Image Generation Engine
+        return self._generate_neural_image(prompt, size=size, model=model)
 
-        # Fallback: Educational Diagrammatic Vector Synthesis
-        return self._generate_educational_diagram(prompt)
+    def _generate_neural_image(self, prompt, size="1024x1024", model="flux"):
+        """High-definition neural AI image synthesis using text-to-image foundation models."""
+        import random
+        clean_p = prompt.strip()
+
+        # Check if user already specified detailed style modifiers
+        has_style = any(w in clean_p.lower() for w in (
+            "photorealistic", "cinematic", "8k", "hyperrealistic", "unreal engine",
+            "anime", "watercolor", "illustration", "oil painting", "digital art",
+            "3d render", "pixar", "isometric", "cyberpunk", "studio portrait",
+            "studio lighting", "vibrant", "octane render"
+        ))
+
+        if not has_style:
+            enhanced_prompt = f"{clean_p}, high quality digital art, cinematic lighting, sharp focus, 8k resolution, detailed"
+        else:
+            enhanced_prompt = f"{clean_p}, sharp focus, 8k resolution, high quality"
+
+        seed = random.randint(1000, 999999)
+
+        w, h = 768, 768
+        if "x" in size:
+            try:
+                parts = size.split("x")
+                w, h = int(parts[0]), int(parts[1])
+            except Exception:
+                pass
+
+        encoded_prompt = urllib.parse.quote(enhanced_prompt.strip())
+        pollinations_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={w}&height={h}&seed={seed}&nologo=true"
+        proxy_url = f"/api/image/proxy?url={urllib.parse.quote(pollinations_url)}"
+
+        return {
+            "type": "url",
+            "url": proxy_url,
+            "raw_url": pollinations_url,
+            "prompt": clean_p,
+            "enhanced_prompt": enhanced_prompt,
+            "seed": seed,
+            "mode": "creative_image",
+            "provider": "neural_ai_model"
+        }
 
     def edit_image(self, image_data, prompt, size="1024x1024", model="stable-diffusion"):
         """Edit an existing image with new prompt instructions."""
@@ -647,7 +682,14 @@ class ImageGenerator:
         
         b64_svg = base64.b64encode(svg.encode("utf-8")).decode("utf-8")
         data_uri = f"data:image/svg+xml;base64,{b64_svg}"
-        return {"type": "svg", "url": data_uri, "prompt": prompt, "svg_raw": svg}
+        return {
+            "type": "svg",
+            "url": data_uri,
+            "prompt": prompt,
+            "svg_raw": svg,
+            "mode": "educational_diagram",
+            "provider": "educational_vector_engine"
+        }
 
 
 # Singleton instance

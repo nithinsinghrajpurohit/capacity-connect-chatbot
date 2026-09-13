@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify, send_from_directory, Response
+from flask import Flask, request, jsonify, send_from_directory, Response, make_response
+import urllib.request
 from flask_cors import CORS
 from database import init_db, seed_demo_data, get_db
 from astra_engine import process_message
@@ -298,6 +299,32 @@ def edit_image_endpoint():
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"Image editing error: {str(e)}"}), 500
+
+
+@app.route("/api/image/proxy", methods=["GET"])
+def proxy_image_endpoint():
+    url = request.args.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "URL is required"}), 400
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            content_type = resp.headers.get("Content-Type", "image/jpeg")
+            data = resp.read()
+            response = make_response(data)
+            response.headers["Content-Type"] = content_type
+            response.headers["Cache-Control"] = "public, max-age=86400"
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            return response
+    except Exception as e:
+        print(f"[ImageProxy] Error fetching remote image: {e}")
+        return jsonify({"error": f"Failed to fetch image: {str(e)}"}), 502
 
 
 @app.route("/api/pdf/generate", methods=["POST"])
