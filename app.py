@@ -13,7 +13,7 @@ import jwt
 from functools import wraps
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept"], methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 
 @app.route("/api/health", methods=["GET"])

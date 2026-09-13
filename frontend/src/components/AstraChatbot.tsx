@@ -322,23 +322,37 @@ export const AstraChatbot: React.FC<{
     window.speechSynthesis.speak(utterance);
   };
 
-  // Dynamic API Base URL: checks Vite proxy first, then direct 127.0.0.1:5000 fallback
-  const API_BASE =
+  // Dynamic API Base URL: checks Vite environment variable first, then window global, then empty (relative)
+  const rawApiBase =
     (import.meta as any).env?.VITE_API_BASE_URL ||
+    (import.meta as any).env?.VITE_API_URL ||
     (typeof window !== 'undefined' && (window as any).SASTRA_API_URL) ||
     '';
+  const API_BASE = rawApiBase ? rawApiBase.replace(/\/+$/, '') : '';
 
   const fetchWithFallback = async (endpoint: string, options: RequestInit) => {
-    // Try primary endpoint (e.g. '' relative via Vite proxy or Vercel rewrite)
+    const cleanEp = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+    // 1. If API_BASE is explicitly set (e.g., Render backend on Vercel)
+    if (API_BASE) {
+      try {
+        const res = await fetch(`${API_BASE}${cleanEp}`, options);
+        if (res.ok) return res;
+      } catch (e) {
+        console.warn(`Fetch to ${API_BASE}${cleanEp} failed:`, e);
+      }
+    }
+
+    // 2. Relative endpoint (works with Vite proxy or Vercel rewrites)
     try {
-      const primaryUrl = API_BASE ? `${API_BASE}${endpoint}` : endpoint;
-      const res = await fetch(primaryUrl, options);
+      const res = await fetch(cleanEp, options);
       if (res.ok) return res;
     } catch (e) {
-      console.warn('Primary API fetch failed, trying direct 127.0.0.1:5000 fallback...', e);
+      console.warn('Relative fetch failed, attempting localhost fallback...', e);
     }
-    // Direct fallback to Python Flask on 127.0.0.1:5000
-    const fallbackUrl = `http://127.0.0.1:5000${endpoint}`;
+
+    // 3. Fallback to local 127.0.0.1:5000 if developing locally
+    const fallbackUrl = `http://127.0.0.1:5000${cleanEp}`;
     return await fetch(fallbackUrl, options);
   };
 
@@ -358,9 +372,10 @@ export const AstraChatbot: React.FC<{
       if (res.ok) {
         const data = await res.json();
         if (data.url) {
+          const hostBase = API_BASE || (typeof window !== 'undefined' && window.location.hostname.includes('localhost') ? 'http://127.0.0.1:5000' : window.location.origin);
           const fullUrl = data.url.startsWith('http')
             ? data.url
-            : `http://127.0.0.1:5000${data.url}`;
+            : `${hostBase}${data.url.startsWith('/') ? data.url : `/${data.url}`}`;
           // Open PDF directly in a new browser tab for immediate viewing & reading
           window.open(fullUrl, '_blank', 'noopener,noreferrer');
         }
@@ -485,10 +500,11 @@ export const AstraChatbot: React.FC<{
       setMessages((prev) => [...prev, botMsg]);
     } catch (err: any) {
       setTimeout(() => {
+        const targetHost = API_BASE || '127.0.0.1:5000';
         const fallbackMsg: Message = {
           id: `bot-${Date.now()}`,
           role: 'assistant',
-          content: `⚠️ Sastra backend connection notice:\nCould not reach the Python backend at 127.0.0.1:5000.\n\nPlease verify that your Flask server is running in a terminal:\n\`cd capacity-connect-chatbot && python app.py\`\n\n(Details: ${err?.message || 'Network unreachable'})`,
+          content: `⚠️ Sastra backend connection notice:\nCould not reach the Python backend at ${targetHost}.\n\nIf you are running on Vercel, please ensure that your Render backend is deployed and VITE_API_BASE_URL is configured in your Vercel Project Settings.\n\n(Details: ${err?.message || 'Network unreachable'})`,
           suggestions: ['Retry question 🔄', 'Explain Photosynthesis 🌿', 'Quiz me 🎯'],
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };

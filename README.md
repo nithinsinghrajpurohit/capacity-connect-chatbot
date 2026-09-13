@@ -77,25 +77,48 @@ Open **http://localhost:5000** in your browser to interact with the full Sastra 
 
 ## 🌐 Deployment Guide
 
-### Option 1: Deploy to Render (Recommended — Free & 1-Click)
+### Recommended Stack: Backend on Render + Frontend on Vercel
 
-Render natively runs the pre-built application using Python and Gunicorn.
+---
 
-1. Create a free account at [render.com](https://render.com).
+### Step 1: Deploy Backend to Render
+
+1. Go to **[render.com](https://render.com/)** and log in with GitHub.
 2. Click **New +** → **Web Service**.
-3. Connect your GitHub repository: `https://github.com/nithinsinghrajpurohit/capacity-connect-chatbot`.
+3. Connect your repository: `https://github.com/nithinsinghrajpurohit/capacity-connect-chatbot`.
 4. Configure the settings:
-   - **Name**: `capacity-connect-chatbot`
+   - **Name**: `capacity-connect-backend` (or `capacity-connect-chatbot`)
    - **Language / Runtime**: `Python 3`
-   - **Region**: Closest to your users
+   - **Region**: Choose closest to you (e.g. *Singapore / Frankfurt / Oregon*)
    - **Branch**: `main`
+   - **Root Directory**: *(leave blank)*
    - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `gunicorn app:app --bind 0.0.0.0:$PORT`
 5. Under **Environment Variables**, add:
-   - `GEMINI_API_KEY` = `your_gemini_api_key`
+   - `GEMINI_API_KEY` = `your_gemini_api_key` *(from [Google AI Studio](https://aistudio.google.com/apikey))*
    - `LLM_PROVIDER` = `gemini`
    - `JWT_SECRET` = `your_random_secret_string`
-6. Click **Create Web Service**. Your live app will be accessible at `https://<service-name>.onrender.com`!
+   - `FLASK_DEBUG` = `false`
+6. Click **Create Web Service**.
+7. Once deployed, copy your Render URL (e.g., `https://capacity-connect-backend.onrender.com`).
+
+---
+
+### Step 2: Deploy Frontend to Vercel
+
+1. Go to **[vercel.com](https://vercel.com/)** and sign in with GitHub.
+2. Click **Add New…** → **Project**.
+3. Select `capacity-connect-chatbot` from your repositories.
+4. In the configuration screen:
+   - **Framework Preset**: `Vite`
+   - **Root Directory**: Click *Edit* and select **`frontend`**
+   - **Build Command**: `npm run build` *(default)*
+   - **Output Directory**: `dist` *(default)*
+5. Open **Environment Variables** and add:
+   - **Key**: `VITE_API_BASE_URL`
+   - **Value**: `https://capacity-connect-backend.onrender.com` *(paste your Render backend URL from Step 1, without trailing slash)*
+6. Click **Deploy**.
+7. Vercel will build and launch your high-performance frontend with global CDN edge caching!
 
 ---
 
