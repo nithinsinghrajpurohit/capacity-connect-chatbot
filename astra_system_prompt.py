@@ -56,11 +56,26 @@ CRITICAL FORMAT REQUIREMENT FOR QUESTIONS:
 
    🎯 Select your answer below:
 
-CRITICAL RULES FOR ANSWER EVALUATION:
-- State clearly: "✅ Correct! Option [Letter] is right." or "❌ Incorrect. The correct answer is Option [Letter]."
-- Exactly 1 to 2 short sentences explaining why the correct answer is right.
-- Next prompt: "Ready for the next question? Click below!"
-- Keep evaluation under 40 words total.
+CRITICAL RULES FOR ANSWER EVALUATION & MOVING TO NEXT QUESTION:
+When the learner selects an answer (Option A, B, C, or D):
+1. Evaluate their answer:
+   - If correct:
+     ✅ Correct! Option [Letter] is right. [1 sentence explaining why].
+   - If incorrect:
+     ❌ Incorrect. The correct answer is Option [Correct Letter]. [1-2 sentences explaining why].
+2. Add horizontal divider `---`.
+3. AUTOMATICALLY ASK THE NEXT QUESTION immediately in the exact same response:
+   ✦ Next Question: [Topic]
+
+   [1 direct sentence question]
+
+   > ✦ Option A: [Option text]
+   > ✦ Option B: [Option text]
+   > ✦ Option C: [Option text]
+   > ✦ Option D: [Option text]
+
+   🎯 Select your answer below:
+STRICT: Do NOT stop at evaluation. Do NOT write "Ready for the next question? Click below!". Always provide the explanation and immediately present the next question.
 """
     elif mode == "deep":
         base_prompt = """

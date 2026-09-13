@@ -76,21 +76,42 @@ def detect_mode(message, explicit_mode=None):
     return "learn"
 
 def is_quiz_question_message(msg_text):
-    """Detects whether a message contains a multiple-choice quiz question."""
+    """Detects whether a message contains an active multiple-choice quiz question."""
     if not msg_text:
         return False
     lower = msg_text.lower()
-    has_options = bool(
+    has_multiple_options = bool(
         ("option a" in lower and "option b" in lower) or
         ("❯ a)" in lower and "❯ b)" in lower) or
         ("a)" in lower and "b)" in lower and "c)" in lower) or
-        ("✦ option a" in lower) or
-        (re.search(r'\bOption\s+[A-D]\b', msg_text, re.I))
+        ("✦ option a" in lower and "✦ option b" in lower)
     )
     has_question_cues = bool(
-        re.search(r'\b(quiz|question|which option|what is the output|what will be printed|choose the correct|which of the following|your answer|drop your answer)\b', lower)
+        re.search(r'\b(quiz|next question|question|which option|what is the output|what will be printed|choose the correct|which of the following|select your answer)\b', lower)
     )
-    return has_options or (has_question_cues and ("option" in lower or "choice" in lower))
+    return has_multiple_options and (has_question_cues or "option c" in lower)
+
+def extract_topic_from_quiz_msg(msg):
+    """Extracts topic from a quiz message header (e.g. '✦ Quiz: Machine Learning' or '✦ Next Question: Python')."""
+    if not msg:
+        return None
+    m = re.search(r'✦\s*(?:Quiz|Next Question):\s*([^\n\r]+)', msg, re.I)
+    if m:
+        t = m.group(1).strip()
+        t = re.sub(r'[\U00010000-\U0010ffff\u2600-\u27bf\u2300-\u23ff]', '', t).strip()
+        if len(t) >= 2:
+            return t
+    return None
+
+def extract_active_question_from_quiz_msg(msg):
+    """If the message has an evaluation followed by a next question, extract the active question part."""
+    if not msg:
+        return msg
+    m = re.search(r'(✦\s*(?:Next Question|Quiz):.*)', msg, re.DOTALL | re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    return msg
+
 
 def extract_clean_concept_title(query):
     """Extracts a clean, canonical concept title from conversational user queries, stripping fillers and typos."""
@@ -1201,38 +1222,75 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
 
     # Scenario A: The user is answering an active quiz question from conversation history!
     if choice and last_quiz_msg:
+        active_q_text = extract_active_question_from_quiz_msg(last_quiz_msg)
+        quiz_topic = extract_topic_from_quiz_msg(last_quiz_msg) or extract_last_topic_from_history(history) or "Core Concepts"
         eval_prompt = (
-            f"The learner is answering this quiz question:\n\n"
-            f"{last_quiz_msg}\n\n"
+            f"The learner answered the following quiz question:\n\n"
+            f"{active_q_text}\n\n"
             f"LEARNER'S ANSWER: Option {choice} (Learner message: '{message}').\n\n"
-            f"CRITICAL REQUIREMENT — KEEP EVALUATION SIMPLE & CONCISE (LESS CONTENT):\n"
-            f"1. State clearly: ✅ Correct! Option {choice} is right. OR ❌ Incorrect. The correct answer is Option <Correct Letter>.\n"
-            f"2. Give 1 to 2 clear, brief sentences explaining why the correct answer is right.\n"
-            f"3. Prompt: Ready for the next question? Click below!\n"
-            f"STRICT: Under 40 words total. No long essays. Do NOT output raw markdown double asterisks (**)."
+            f"CRITICAL REQUIREMENTS — EVALUATE AND IMMEDIATELY ASK NEXT QUESTION:\n"
+            f"PART 1: EVALUATION (KEEP SIMPLE & DIRECT)\n"
+            f"- If Option {choice} is correct:\n"
+            f"  ✅ Correct! Option {choice} is right. <1 brief sentence explaining why>.\n"
+            f"- If Option {choice} is incorrect:\n"
+            f"  ❌ Incorrect. The correct answer is Option <Correct Letter>. <1-2 brief sentences explaining why>.\n\n"
+            f"---\n\n"
+            f"PART 2: NEXT QUESTION (MANDATORY IN THIS SAME RESPONSE)\n"
+            f"Immediately generate the NEXT multiple-choice question on '{quiz_topic}' following this exact format:\n"
+            f"✦ Next Question: {quiz_topic}\n\n"
+            f"<1 direct sentence question>\n\n"
+            f"> ✦ Option A: <text>\n"
+            f"> ✦ Option B: <text>\n"
+            f"> ✦ Option C: <text>\n"
+            f"> ✦ Option D: <text>\n\n"
+            f"🎯 Select your answer below:\n\n"
+            f"STRICT RULES:\n"
+            f"- DO NOT stop after evaluation. DO NOT write 'Ready for the next question? Click below!'. You MUST generate the next question immediately.\n"
+            f"- Keep both evaluation and question concise and simple (less content).\n"
+            f"- Do NOT output raw markdown double asterisks (**)."
         )
         llm_reply = _llm_respond(eval_prompt, context, None, page_ctx, "quiz")
-        if not llm_reply:
-            llm_reply = (
-                f"✦ Quiz Evaluation — Option {choice}\n\n"
-                f"Great job putting your knowledge to work! Select another challenge below to keep practicing."
-            )
+
+        # Clean up any leftover 'Ready for the next question'
+        if llm_reply:
+            llm_reply = re.sub(r'Ready for the next question\??[^\n]*', '', llm_reply, flags=re.I).strip()
+
+        has_eval = llm_reply and any(k in llm_reply for k in ("✅", "❌", "Correct", "Incorrect", "right", "wrong"))
+        has_next_q = llm_reply and ("✦ Next Question:" in llm_reply or "✦ Quiz:" in llm_reply or ("> ✦ Option A:" in llm_reply and "> ✦ Option B:" in llm_reply))
+
+        if not (has_eval and has_next_q):
+            # Synthesize evaluation verdict + next question fallback
+            eval_verdict = ""
+            if llm_reply and any(k in llm_reply for k in ("✅", "❌", "Correct", "Incorrect")):
+                eval_verdict = llm_reply.strip()
+            else:
+                eval_verdict = f"✅ Option {choice} received! Great effort testing your knowledge on {quiz_topic}."
+
+            tk, sk = base.find_best_topic(quiz_topic)
+            next_q_obj = topic_quiz_turn(quiz_topic, tk, sk)
+            q_part = next_q_obj["reply"].replace("✦ Quiz:", "✦ Next Question:")
+            llm_reply = f"{eval_verdict}\n\n---\n\n{q_part}"
+
         return {
             "reply": llm_reply,
             "mode": "quiz",
-            "suggestions": ["Next Question 🎯", "Explain this topic simply 🌿", "Take another Quiz 💡"]
+            "suggestions": ["Option A", "Option B", "Option C", "Option D"]
         }
 
     # Scenario B: User typed "option c", "Option B" explicitly but no prior question is in recent history
     if choice and any(w in message.lower() for w in ("option", "choice", "ans", "answer")):
+        quiz_topic = active_topic or "Core Programming"
+        tk, sk = base.find_best_topic(quiz_topic)
+        q_obj = topic_quiz_turn(quiz_topic, tk, sk)
         return {
             "reply": (
                 f"✦ Option {choice} Received\n\n"
-                f"It looks like you selected Option {choice}! If you'd like to test your knowledge with interactive scoring, click 'Quiz me' below to start a quiz.\n\n"
-                f"💡 What topic would you like to explore or be quizzed on?"
+                f"Let's test your knowledge with a quiz on {quiz_topic}!\n\n"
+                f"---\n\n"
+                f"{q_obj['reply']}"
             ),
             "mode": "quiz",
-            "suggestions": ["Quiz me on Python 🎯", "Explain Python variables 🌿", "Tell me about Quantum Computing 💡", "Show learning path 🧭"]
+            "suggestions": ["Option A", "Option B", "Option C", "Option D"]
         }
 
     # Scenario C: User typed literally just "c" or "c." without any question context
@@ -1266,7 +1324,7 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     # ─────────────────────────────────────────────────────────────────────────────
     active_topic = extract_last_topic_from_history(history)
 
-    is_pure_quiz = bool(re.match(r"^(?:quiz me on this|quiz me|quiz|take quiz|test me|take mastery quiz|interactive quiz)\b", clean_m, re.I))
+    is_pure_quiz = bool(re.match(r"^(?:quiz me on this|quiz me|quiz|take quiz|test me|take mastery quiz|interactive quiz|next question|next quiz question|another question|next)\b", clean_m, re.I))
     is_pure_notes = bool(re.match(r"^(?:download pdf study guide|download pdf|generate pdf|study notes|notes|download roadmap pdf)\b", clean_m, re.I))
     is_pure_img = bool(re.match(r"^(?:draw ai diagram|ai diagram|generate diagram|diagram|show diagram|draw diagram|generate image|study visual)\b", clean_m, re.I))
     is_pure_path = bool(re.search(r"\b(?:show learning path|learning path|road map|roadmap|curriculum|syllabus|study plan|how to learn|path to learn|steps to master)\b", clean_m, re.I))
@@ -1275,8 +1333,10 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     is_pure_deep = bool(re.search(r"\b(?:deep explanation|deep dive|explain in depth|in depth|detailed breakdown|masterclass|deep explain|explain deep)\b", clean_m, re.I))
 
     concept_query = message
-    if is_pure_quiz and active_topic:
-        concept_query = active_topic
+    if is_pure_quiz:
+        resolved_quiz_topic = active_topic or (extract_topic_from_quiz_msg(last_quiz_msg) if last_quiz_msg else None)
+        if resolved_quiz_topic:
+            concept_query = resolved_quiz_topic
     elif is_pure_notes and active_topic:
         concept_query = active_topic
     elif is_pure_img and active_topic:
