@@ -249,7 +249,7 @@ class GeminiAdapter(LLMAdapter):
         for key in self.keys:
             try:
                 import google.generativeai as genai
-                genai.configure(api_key=key)
+                genai.configure(api_key=key, transport="rest")
 
                 parts = []
                 if image_data:
