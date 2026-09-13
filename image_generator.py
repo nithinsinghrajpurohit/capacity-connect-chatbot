@@ -21,15 +21,15 @@ class ImageGenerator:
     API_GENERATIONS = os.getenv("IMAGE_API_GENERATIONS", "https://api-images.bynara.id/v1/images/generations")
     API_EDITS = os.getenv("IMAGE_API_EDITS", "https://api-images.bynara.id/v1/images/edits")
     
-    KEYS = [k for k in [
-        os.getenv("IMAGE_API_KEY"),
-        os.getenv("ANTHROPIC_AUTH_TOKEN"),
-        os.getenv("BYNARA_API_KEY")
-    ] if k and isinstance(k, str) and k.strip()]
-    
     def __init__(self):
-        self.keys = [k for k in self.KEYS if k]
-    
+        self.openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+        self.together_key = os.getenv("TOGETHER_API_KEY", "").strip()
+        self.hf_token = os.getenv("HUGGINGFACE_API_KEY", os.getenv("HF_TOKEN", "")).strip()
+        self.stability_key = os.getenv("STABILITY_API_KEY", "").strip()
+        self.bynara_key = os.getenv("BYNARA_API_KEY", "").strip()
+        self.image_api_key = os.getenv("IMAGE_API_KEY", "").strip()
+        self.keys = [k for k in [self.image_api_key, self.bynara_key, self.openai_key, self.hf_token] if k]
+
     def is_educational_diagram_request(self, prompt):
         """Check if user is explicitly asking for a programmatic concept roadmap, flowchart, or architecture diagram."""
         p_lower = prompt.lower()
@@ -42,33 +42,256 @@ class ImageGenerator:
         return any(cue in p_lower for cue in diagram_cues)
 
     def generate_image(self, prompt, size="1024x1024", model="flux"):
-        """Generate an educational concept diagram or high-definition neural visual illustration from prompt."""
+        """Generate an educational concept diagram or high-definition visual illustration from prompt."""
         # 1. Check if user is asking for an educational curriculum / roadmap / computer science architectural blueprint
         if self.is_educational_diagram_request(prompt):
             return self._generate_educational_diagram(prompt)
 
-        # Route to Educational Study Visual Synthesis
-        return self._generate_neural_image(prompt, size=size, model=model)
-
-    def _generate_neural_image(self, prompt, size="1024x1024", model="flux"):
-        """High-definition educational study visual synthesis for academic concepts, science, and computing."""
-        import random
         clean_p = prompt.strip()
-
         # Enhance prompt specifically for clear, readable educational study diagrams and academic visual infographics
         study_enhancers = "clear educational study diagram, labeled academic concept infographic, pedagogical concept visual, clean scientific illustration, high resolution, sharp focus, 8k"
-        
         has_study_cue = any(w in clean_p.lower() for w in (
             "study", "diagram", "infographic", "scientific", "concept", "anatomy", "architecture", "flowchart", "labeled", "educational", "roadmap"
         ))
+        enhanced_prompt = clean_p if has_study_cue else f"{clean_p}, {study_enhancers}"
 
-        if not has_study_cue:
-            enhanced_prompt = f"{clean_p}, {study_enhancers}"
-        else:
-            enhanced_prompt = f"{clean_p}, clear educational visual, sharp focus, high definition"
+        # 2. Try Stability AI (Verified 25 credits active)
+        if self.stability_key:
+            res = self._try_stability_ai(enhanced_prompt, size)
+            if res:
+                return res
 
+        # 3. Try OpenAI if OPENAI_API_KEY is configured
+        if self.openai_key:
+            res = self._try_openai_dalle3(enhanced_prompt, size)
+            if res:
+                return res
+
+        # 4. Try Together AI FLUX.1 if TOGETHER_API_KEY is configured
+        if self.together_key:
+            res = self._try_together_flux(enhanced_prompt, size)
+            if res:
+                return res
+
+        # 5. Try Hugging Face (100% Free API Token)
+        if self.hf_token:
+            res = self._try_huggingface(enhanced_prompt, size)
+            if res:
+                return res
+
+        # 6. Try Bynara API if key configured
+        if self.bynara_key or self.image_api_key:
+            res = self._try_bynara(enhanced_prompt, size)
+            if res:
+                return res
+
+        # 7. Smooth fallback to high-definition neural visual engine
+        return self._generate_neural_fallback(clean_p, enhanced_prompt, size)
+
+    def _try_huggingface(self, prompt, size="1024x1024"):
+        """Generates image using Hugging Face Free Inference API with FLUX.1-schnell or SDXL."""
+        models_to_try = [
+            "black-forest-labs/FLUX.1-schnell",
+            "stabilityai/stable-diffusion-xl-base-1.0"
+        ]
+        for model_id in models_to_try:
+            try:
+                url = f"https://api-inference.huggingface.co/models/{model_id}"
+                payload = {"inputs": prompt}
+                req = urllib.request.Request(
+                    url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={
+                        "Authorization": f"Bearer {self.hf_token}",
+                        "Content-Type": "application/json"
+                    },
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=35) as resp:
+                    content_type = resp.headers.get("Content-Type", "")
+                    data = resp.read()
+                    if "image" in content_type or (data and data[:4] in (b'\x89PNG', b'\xff\xd8\xff\xe0', b'\xff\xd8\xff\xe1', b'RIFF')):
+                        b64 = base64.b64encode(data).decode("utf-8")
+                        mime = content_type if "image" in content_type else "image/jpeg"
+                        return {
+                            "type": "base64",
+                            "url": f"data:{mime};base64,{b64}",
+                            "prompt": prompt,
+                            "mode": "study_image",
+                            "provider": f"huggingface_{model_id.split('/')[-1]}"
+                        }
+            except Exception as e:
+                print(f"[ImageGen] Hugging Face {model_id} error: {e}")
+        return None
+
+    def _try_openai_dalle3(self, prompt, size="1024x1024"):
+        """Generates image using OpenAI DALL·E 3 (Gold standard for prompt following & labels)."""
+        try:
+            url = "https://api.openai.com/v1/images/generations"
+            payload = {
+                "model": "dall-e-3",
+                "prompt": prompt[:1000],
+                "n": 1,
+                "size": "1024x1024",
+                "quality": "standard"
+            }
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {self.openai_key}",
+                    "Content-Type": "application/json"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                items = data.get("data", [])
+                if items and "url" in items[0]:
+                    img_url = items[0]["url"]
+                    proxy_url = f"/api/image/proxy?url={urllib.parse.quote(img_url)}"
+                    return {
+                        "type": "url",
+                        "url": proxy_url,
+                        "raw_url": img_url,
+                        "prompt": prompt,
+                        "mode": "study_image",
+                        "provider": "openai_dalle3"
+                    }
+        except Exception as e:
+            print(f"[ImageGen] OpenAI DALL-E 3 error: {e}")
+        return None
+
+    def _try_together_flux(self, prompt, size="1024x1024"):
+        """Generates image using Together AI FLUX.1 (Top open model for photorealism & detail)."""
+        try:
+            url = "https://api.together.xyz/v1/images/generations"
+            w, h = 1024, 1024
+            payload = {
+                "model": "black-forest-labs/FLUX.1-schnell",
+                "prompt": prompt,
+                "width": w,
+                "height": h,
+                "steps": 4,
+                "n": 1
+            }
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {self.together_key}",
+                    "Content-Type": "application/json"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                items = data.get("data", [])
+                if items:
+                    img_url = items[0].get("url")
+                    if img_url:
+                        proxy_url = f"/api/image/proxy?url={urllib.parse.quote(img_url)}"
+                        return {
+                            "type": "url",
+                            "url": proxy_url,
+                            "raw_url": img_url,
+                            "prompt": prompt,
+                            "mode": "study_image",
+                            "provider": "together_flux"
+                        }
+                    elif "b64_json" in items[0]:
+                        b64 = items[0]["b64_json"]
+                        return {
+                            "type": "base64",
+                            "url": f"data:image/jpeg;base64,{b64}",
+                            "prompt": prompt,
+                            "mode": "study_image",
+                            "provider": "together_flux"
+                        }
+        except Exception as e:
+            print(f"[ImageGen] Together AI FLUX error: {e}")
+        return None
+
+    def _try_stability_ai(self, prompt, size="1024x1024"):
+        """Generates image using Stability AI SD3.5."""
+        try:
+            url = "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image"
+            payload = {
+                "text_prompts": [{"text": prompt, "weight": 1.0}],
+                "cfg_scale": 7,
+                "height": 1024,
+                "width": 1024,
+                "samples": 1,
+                "steps": 30
+            }
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {self.stability_key}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                artifacts = data.get("artifacts", [])
+                if artifacts and "base64" in artifacts[0]:
+                    b64 = artifacts[0]["base64"]
+                    return {
+                        "type": "base64",
+                        "url": f"data:image/png;base64,{b64}",
+                        "prompt": prompt,
+                        "mode": "study_image",
+                        "provider": "stability_ai"
+                    }
+        except Exception as e:
+            print(f"[ImageGen] Stability AI error: {e}")
+        return None
+
+    def _try_bynara(self, prompt, size="1024x1024"):
+        """Generates image using Bynara image endpoint."""
+        key = self.bynara_key or self.image_api_key
+        try:
+            payload = {
+                "model": "flux",
+                "prompt": prompt,
+                "n": 1,
+                "size": size
+            }
+            req = urllib.request.Request(
+                self.API_GENERATIONS,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                items = data.get("data", [])
+                if items and "url" in items[0]:
+                    img_url = items[0]["url"]
+                    proxy_url = f"/api/image/proxy?url={urllib.parse.quote(img_url)}"
+                    return {
+                        "type": "url",
+                        "url": proxy_url,
+                        "raw_url": img_url,
+                        "prompt": prompt,
+                        "mode": "study_image",
+                        "provider": "bynara"
+                    }
+        except Exception as e:
+            print(f"[ImageGen] Bynara error: {e}")
+        return None
+
+    def _generate_neural_fallback(self, clean_p, enhanced_prompt, size="1024x1024"):
+        """High-definition neural visual engine fallback."""
+        import random
         seed = random.randint(1000, 999999)
-
         w, h = 768, 768
         if "x" in size:
             try:
