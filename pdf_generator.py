@@ -264,15 +264,21 @@ class PDFGenerator:
 
             if line.startswith("```"):
                 if in_code_block:
-                    # Flush code block
-                    code_text = "<br/>".join([c.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") for c in code_buffer])
-                    code_p = Paragraph(code_text, code_style)
-                    code_box = Table([[code_p]], colWidths=[504])
+                    # Flush code block as multi-row table so it can split across pages without LayoutError
+                    rows = []
+                    for c in code_buffer:
+                        safe_line = c.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace(" ", "&nbsp;")
+                        rows.append([Paragraph(safe_line or "&nbsp;", code_style)])
+                    if not rows:
+                        rows = [[Paragraph("&nbsp;", code_style)]]
+                    code_box = Table(rows, colWidths=[504], splitByRow=1)
                     code_box.setStyle(TableStyle([
                         ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f1f5f9")),
                         ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
-                        ('PADDING', (0, 0), (-1, -1), 8),
-                        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                        ('TOPPADDING', (0, 0), (-1, -1), 1.5),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5),
                     ]))
                     story.append(code_box)
                     story.append(Spacer(1, 6))

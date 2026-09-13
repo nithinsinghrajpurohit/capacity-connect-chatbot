@@ -5,6 +5,7 @@ Supports:
 3. High-definition SVG educational diagram generator fallback for complex science/computing concepts
 """
 
+import os
 import json
 import urllib.request
 import urllib.error
