@@ -238,35 +238,44 @@ def deep_explain(topic_key, subtopic_key, skill_level="intermediate", frustrated
     if not topic_data:
         return None
     sub = topic_data["topics"].get(subtopic_key) or list(topic_data["topics"].values())[0]
-    rel = [t for k, t in topic_data["topics"].items() if t["title"] != sub["title"]][:2]
     out = []
-    out.append(f"✦ {sub['title']} — Deep Masterclass & Architectural Mechanics\n")
-    out.append(f"◈ 1. First Principles & Formal Definition\n{sub['what']}\nAt a fundamental level, this establishes an explicit contract between memory addresses, symbolic identifiers, and runtime execution semantics.\n")
-    out.append(f"◈ 2. Architectural Motivation (Why It Exists)\n{sub['title']} exists because scalable software requires modular decomposition and encapsulation. Without this pattern, systems suffer from state pollution, hard-to-trace side effects, and brittle codebases.\n")
-    out.append("◈ 3. Low-Level Mechanics & Memory Model\n• Stack & Heap Allocation: Symbolic bindings are resolved in the call frame stack or allocated on the dynamic heap with reference counters.\n• Scope & Lifetime: Enforces deterministic lifetime rules, preventing out-of-scope variable pollution.\n• Bytecode Execution: Evaluated into optimized opcodes with high-speed symbol lookup.\n")
-    out.append("◈ 4. Step-by-Step Execution Lifecycle\n" + "\n".join(f"• Phase {i+1}: {p}" for i, p in enumerate(sub["key_points"])) + "\n")
-    out.append(f"◈ 5. Multi-Paradigm Code Implementation\n{sub['example']}\n")
-    out.append(f"◈ 6. Architectural Flow & Visual Blueprint\n{ascii_diagram(topic_key, subtopic_key)}\n")
-    out.append("◈ 7. Real-World Production & Enterprise Use-Cases\nCritical in high-throughput microservices, real-time data pipelines, and production backend APIs where memory efficiency and predictability are non-negotiable.\n")
-    out.append("◈ 8. Edge Cases, Subtle Pitfalls & Failure Modes\n" + "\n".join(f"• Pitfall {i+1}: {x}" for i, x in enumerate(sub.get("common_mistakes", ["Uninitialized references", "Off-by-one boundary conditions", "Unintended global mutations"]))) + "\n")
-    out.append("◈ 9. Performance & Complexity Analysis\n• Time Complexity: O(1) direct reference lookup in optimal hash-backed frames.\n• Space Overhead: Constant auxiliary space per stack frame / pointer reference.\n")
-    if rel:
-        out.append("◈ 10. Related Architectural Concepts\n" + "\n".join(f"• {r['title']}: Builds directly upon these foundational guarantees." for r in rel) + "\n")
-    out.append(f"◈ 11. Hands-On Mastery Exercise & Verification\nChallenge: {sub['practice']}\n\n💡 Reply with your solution or architectural reasoning, and I will verify your conceptual mastery!")
+    out.append(f"✦ {sub['title']} — Technical Deep Dive\n")
+    out.append(f"◈ Architecture & Core Concept:\n{sub['what']}\n\nThis pattern provides essential decoupling, reliable state management, and clear execution boundaries in production software.\n")
+    out.append(f"❖ Practical Code Walkthrough:\n{sub['example']}\n")
+    out.append("◈ Under the Hood (Mechanics & Memory):\n" + "\n".join(f"• {p}" for p in sub["key_points"]) + "\n")
+    if sub.get("common_mistakes"):
+        out.append("◈ Common Gotchas & Edge Cases:\n" + "\n".join(f"• {x}" for x in sub["common_mistakes"]) + "\n")
+    out.append(f"💡 Challenge: {sub['practice']}\n\nTry writing this or reply with your code/reasoning and I will check it!")
     return "\n".join(out)
+
 def dynamic_deep_explain(topic_title):
-    clean_title = topic_title.strip().rstrip("?").replace("what is", "").replace("explain", "").strip().title() or "Core Architecture"
+    clean_title = topic_title.strip().rstrip("?").replace("what is", "").replace("explain", "").strip().title() or "Software Architecture"
+    if clean_title.lower() in ("deep explanation", "deep", "concept", "master this"):
+        clean_title = "Python Engineering"
     return (
-        f"✦ {clean_title} — Deep Masterclass & Architectural Mechanics\n\n"
-        f"◈ 1. First Principles & Formal Definition\n{clean_title} is formally defined as an abstraction layer engineered to decouple implementation details from high-level state operations.\n\n"
-        f"◈ 2. Architectural Motivation (Why It Exists)\nWithout {clean_title}, software components lack formal encapsulation. This pattern guarantees predictable control flow, modular testing, and decoupled interfaces across distributed tiers.\n\n"
-        f"◈ 3. Low-Level Mechanics & Memory Model\n• Memory Footprint: Allocated within dedicated process address space with bounded memory overhead.\n• State Isolation: Prevents unauthorized cross-module mutations and race conditions.\n• Runtime Dispatch: Evaluated with direct pointer indirection or optimized bytecode caches.\n\n"
-        f"◈ 4. Step-by-Step Execution Lifecycle\n• Phase 1: Initialization & Parameter Contract Validation.\n• Phase 2: Runtime Evaluation & State Mutation.\n• Phase 3: Cleanup, Garbage Collection / Deallocation, and Return Dispatch.\n\n"
-        f"◈ 5. Visual Execution Blueprint\n```text\n  Caller Input ──▶ [ Validation & Frame Setup ] ──▶ [ Core Execution Engine ] ──▶ Verified Output\n```\n\n"
-        f"◈ 6. Enterprise & Production Use-Cases\nApplied across cloud architectures, backend microservices, and client-side reactive frameworks to ensure resilience under concurrency.\n\n"
-        f"◈ 7. Edge Cases & Subtle Pitfalls\n• Boundary condition overflow / null pointer exceptions.\n• Unhandled asynchronous timeouts and latency spikes.\n• Resource leakage when deallocation hooks are omitted.\n\n"
-        f"◈ 8. Performance & Complexity Analysis\n• Algorithmic Efficiency: Targeted for O(1) or O(log N) optimal execution.\n• Space Complexity: O(N) linear in worst-case state caching.\n\n"
-        f"◈ 9. Hands-On Mastery Exercise & Verification\nAnalyze how {clean_title} handles an unexpected null or empty input. Reply with your strategy, and I will verify your architectural reasoning!"
+        f"✦ {clean_title} — Technical Deep Dive\n\n"
+        f"◈ Core Architecture & Purpose:\n"
+        f"{clean_title} provides essential structure and operational guarantees in modern software design, decoupling implementation mechanics from higher-level application logic.\n\n"
+        f"❖ Production Code Walkthrough:\n"
+        f"```python\n"
+        f"# Example: Clean architectural implementation for {clean_title}\n"
+        f"class SafePipeline:\n"
+        f"    def __init__(self, name: str):\n"
+        f"        self.name = name\n"
+        f"        self._active = True\n\n"
+        f"    def execute(self, payload: dict) -> dict:\n"
+        f"        if not payload:\n"
+        f"            raise ValueError('Payload cannot be empty')\n"
+        f"        return {{'status': 'success', 'module': self.name, 'processed': payload}}\n\n"
+        f"pipeline = SafePipeline('{clean_title}')\n"
+        f"result = pipeline.execute({{'task_id': 101}})\n"
+        f"print(f\"Result: {{result}}\")\n"
+        f"```\n\n"
+        f"◈ Under-the-Hood Mechanics & Performance:\n"
+        f"• Memory Management: References are bound to the active frame and reclaimed deterministically upon scope exit.\n"
+        f"• Complexity: Designed for deterministic execution with predictable Big-O performance.\n"
+        f"• Error Safety: Robust boundary checks prevent null references, leaks, and runtime state corruption.\n\n"
+        f"💡 Senior Tip: When applying {clean_title} in production systems, prioritize defensive validation, isolated scope, and clean error handling."
     )
 def socratic_turn(topic_key, subtopic_key, history):
     topic_data = base.TOPIC_KNOWLEDGE.get(topic_key)
@@ -1332,18 +1341,40 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     if mode == "deep":
         target_deep_topic = concept_query if is_pure_deep else message
         clean_deep_topic = extract_clean_concept_title(target_deep_topic) or target_deep_topic.title()
+
+        # Disambiguate if topic resolved to "Deep Explanation" or generic
+        generic_deep_terms = ("deep explanation", "deep", "explain deeper", "go deeper", "in detail", "master this", "concept", "none", "")
+        if not clean_deep_topic or clean_deep_topic.lower() in generic_deep_terms:
+            if active_topic and active_topic.lower() not in generic_deep_terms:
+                clean_deep_topic = active_topic
+            else:
+                return {
+                    "reply": (
+                        "✦ In-Depth Technical Deep Dive 🔍\n\n"
+                        "Which topic or architectural concept would you like to explore in detail?\n\n"
+                        "Let me know a concept—such as Python Variables, Decorators, Concurrency, Memory Management, or OOP Architecture—and I will break down its internal mechanics, production code, and trade-offs!"
+                    ),
+                    "mode": "deep",
+                    "suggestions": ["Python Variables 🌿", "Decorators & Closures ⚙️", "Memory & GC 🧠", "OOP Architecture 🏗️"]
+                }
+
         deep_prompt = (
-            f"You are in DEEP EXPLANATION MODE. Provide an exhaustive, rigorous, and deep architectural masterclass on: '{clean_deep_topic}'.\n\n"
-            f"Structure your response with deep technical rigor across these sections:\n"
-            f"✦ {clean_deep_topic} — Comprehensive Architectural Masterclass\n\n"
-            f"◈ 1. First Principles & Theoretical Foundation: Formal computer science/engineering definition, mathematical basis, and why this concept was designed.\n\n"
-            f"◈ 2. Internal Mechanics & Memory Model: Explain how it operates under the hood (memory layout, stack vs heap allocation, pointers/references, runtime opcodes, hardware/compiler interaction).\n\n"
-            f"◈ 3. Step-by-Step Execution Lifecycle: Detailed breakdown of runtime phases, state transitions, scope boundaries, and cleanup.\n\n"
-            f"◈ 4. Production-Grade Implementation: Provide a realistic, robust code example demonstrating design patterns, defensive validation, and edge handling.\n\n"
-            f"◈ 5. Performance, Complexity & Trade-offs: Analyze Big-O time and space complexity, memory footprints, and scalability bottlenecks.\n\n"
-            f"◈ 6. Critical Edge Cases & Common Pitfalls: Detail failure modes, concurrency issues, memory leaks, and subtle bugs to avoid.\n\n"
-            f"◈ 7. Enterprise & Production Patterns: Explain how modern distributed systems or enterprise frameworks leverage this pattern at scale.\n\n"
-            f"💡 Architectural Takeaway: High-level synthesis for senior engineers.\n\n"
+            f"You are Sastra, an elite AI software engineering tutor for Capacity Connect. "
+            f"Provide a comprehensive, clear, and engaging technical deep dive on: '{clean_deep_topic}'.\n\n"
+            f"Write naturally, thoroughly, and practically. Do NOT follow a rigid 7-numbered template or use artificial mathematical formulas (like f(D, M) -> E). "
+            f"Instead, deliver a clear, expert technical breakdown across these key areas:\n"
+            f"✦ {clean_deep_topic} — Comprehensive Technical Deep Dive\n\n"
+            f"◈ 1. Core Concept & Architectural Motivation:\n"
+            f"Explain what {clean_deep_topic} is, why it was designed, and the concrete problems it solves in software architecture.\n\n"
+            f"◈ 2. Under the Hood & Internal Mechanics:\n"
+            f"Explain how it works internally (memory allocation, call stack/heap interaction, runtime state transitions, or symbol resolution).\n\n"
+            f"❖ 3. Practical Production Implementation:\n"
+            f"Provide a realistic, robust code walkthrough with comments showing proper error handling and real-world best practices.\n\n"
+            f"◈ 4. Performance, Complexity & Trade-offs:\n"
+            f"Discuss Big-O time and space complexity, memory footprints, and practical bottlenecks.\n\n"
+            f"◈ 5. Common Gotchas & Senior Best Practices:\n"
+            f"Highlight subtle edge cases, common bugs, and production-grade advice.\n\n"
+            f"💡 Key Takeaway: 1-2 sentence synthesis for senior software engineers.\n\n"
             f"Explain with deep, thorough technical clarity. Do NOT output raw markdown double asterisks (**)."
         )
         llm_reply = _llm_respond(deep_prompt, context, history, extra, mode)
