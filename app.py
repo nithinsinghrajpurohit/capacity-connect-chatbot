@@ -186,9 +186,9 @@ def chat():
         conn_lookup.close()
 
     # If user_id is provided, get full_name from db if user_name is empty
-    if user_id and int(user_id) > 0 and not user_name:
+    if user_id and str(user_id).isdigit() and int(user_id) > 0 and not user_name:
         conn_lookup = get_db()
-        u = conn_lookup.execute("SELECT full_name FROM users WHERE id=?", (user_id,)).fetchone()
+        u = conn_lookup.execute("SELECT full_name FROM users WHERE id=?", (int(user_id),)).fetchone()
         if u and u["full_name"]:
             user_name = u["full_name"]
         conn_lookup.close()

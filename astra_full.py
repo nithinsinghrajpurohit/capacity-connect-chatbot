@@ -18,11 +18,9 @@ try:
 except ImportError:
     _llm = None
     _llm_available = False
-MODES = ["learn", "deep", "socratic", "quiz", "revise", "notes", "path", "code", "math", "project", "research", "image"]
+MODES = ["learn", "socratic", "quiz", "revise", "notes", "path", "code", "math", "project", "research", "image"]
 IMAGE_TRIGGERS = ["create image", "generate image", "draw image", "diagram of", "visual of", "illustration", "visual roadmap", "show image", "@image", "@create image", "draw a", "create a visual", "render image"]
 QUIZ_TRIGGERS = ["quiz me", "quiz", "take a quiz", "test my knowledge", "test me", "practice questions", "mcq", "knowledge check", "assessment", "question on", "ask a question"]
-DEEP_TRIGGERS = ["deep explanation", "explain completely", "teach me", "explain in detail",
-                 "comprehensive", "thorough", "go deeper", "explain fully", "master this"]
 SOCRATIC_TRIGGERS = ["quiz me step by step", "ask me guiding", "socratic", "don't tell me the answer",
                      "let me figure", "guide me", "hint"]
 CODE_TRIGGERS = ["debug", "error", "traceback", "fix my code", "what's wrong with", "code review"]
@@ -61,8 +59,6 @@ def detect_mode(message, explicit_mode=None):
         return "project"
     if any(t in m for t in RESEARCH_TRIGGERS):
         return "research"
-    if any(t in m for t in DEEP_TRIGGERS):
-        return "deep"
     return "learn"
 
 def is_quiz_question_message(msg_text):
@@ -735,7 +731,7 @@ def dynamic_easy_learn(topic_title):
         f"◈ Definition:\n{clean_title} is a fundamental concept used to store, organize, and execute data or logic reliably in software.\n\n"
         f"❯ Everyday Intuition:\nThink of {clean_title} like a clearly labeled container in your workspace: you define it once, and reuse it whenever needed without repeating boilerplate code.\n\n"
         f"❖ Code Example:\n```python\n# Basic practical example of {clean_title}\nvalue = 42\nprint(f'{clean_title} in action: {value}')\n```\n\n"
-        f"💡 Key Takeaway: Master this basic definition and syntax first. For internal memory architecture and low-level mechanics, switch to 'Deep Explanations'!"
+        f"💡 Key Takeaway: Master this definition and syntax first, then test your understanding with an interactive quiz or study notes!"
     )
 
 
@@ -750,7 +746,7 @@ def teach_topic_concise(topic_key, subtopic_key):
         f"◈ Definition:\n{subtopic['what']}\n",
         f"❯ Everyday Intuition:\n{subtopic['intuition']}\n",
         f"❖ Code Example:\n{subtopic['example']}\n",
-        "💡 Key Takeaway: Master this basic definition and syntax first. For internal memory architecture and low-level mechanics, switch to 'Deep Explanations'!"
+        "💡 Key Takeaway: Master this definition and syntax first, then test your understanding with an interactive quiz or study notes!"
     ]
     return "\n".join(out)
 
@@ -848,9 +844,9 @@ def topic_quiz_turn(message, tk, sk):
                 f"✦ Quiz Evaluation — Your Selection: Option {picked}\n\n"
                 f"◈ Feedback:\n"
                 f"Great effort! In technical assessments and real-world engineering, understanding why options are right or wrong deepens your foundation.\n\n"
-                f"💡 Practice Tip: Select another question below to reinforce your mastery, or switch modes to dive into deep architecture!"
+                f"💡 Practice Tip: Select another question below to reinforce your mastery, or test your friends!"
             ),
-            "suggestions": ["Next Question 🎯", "Explain this topic simply 🌿", "Deep explanation 🔥", "Download PDF study guide 📄"]
+            "suggestions": ["Next Question 🎯", "Explain this topic simply 🌿", "Draw study diagram 🎨", "Download PDF study guide 📄"]
         }
     # Otherwise, present an MCQ question
     pair = (tk, sk) if (tk and sk) else None
@@ -952,7 +948,7 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
             f"Hello {u_name}! I am Sastra, your AI Learning Operating System for Capacity Connect.\n\n"
             f"How can I help you today? You can ask me to:\n"
             f"✦ Explain any concept (like Python variables, Machine Learning, or Quantum Computing)\n"
-            f"◈ Dive deep into system architectures with Deep Explanations 🔥\n"
+            f"◈ Generate high-definition educational study visuals and diagrams 📚\n"
             f"❯ Generate interactive quizzes or printable PDF study notes 📄\n"
             f"❖ Debug code snippets or solve mathematical formulas 🧮\n\n"
             f"What topic would you like to explore?"
@@ -996,12 +992,12 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
                 f"✦ Quiz Evaluation — Your Selection: Option {choice}\n\n"
                 f"◈ Step-by-Step Review:\n"
                 f"Great job putting your reasoning to work! Tracing execution step-by-step guarantees mastery of underlying code mechanics.\n\n"
-                f"💡 Next Step: Select another challenge below to keep testing your skills, or dive into deep architecture!"
+                f"💡 Next Step: Select another challenge below to keep testing your skills with your friends!"
             )
         return {
             "reply": llm_reply,
             "mode": "quiz",
-            "suggestions": ["Next Question 🎯", "Explain this topic simply 🌿", "Deep explanation 🔥", "Download PDF study guide 📄"]
+            "suggestions": ["Next Question 🎯", "Explain this topic simply 🌿", "Draw study diagram 🎨", "Download PDF study guide 📄"]
         }
 
     # Scenario B: User typed "option c", "Option B" explicitly but no prior question is in recent history
@@ -1047,18 +1043,15 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     # ─────────────────────────────────────────────────────────────────────────────
     active_topic = extract_last_topic_from_history(history)
 
-    is_pure_deep = bool(re.match(r"^(?:deep explanation|deep|explain deeper|go deeper|in detail|master this)\b", clean_m, re.I)) or clean_m == "deep explanation"
     is_pure_quiz = bool(re.match(r"^(?:quiz me on this|quiz me|quiz|take quiz|test me|take mastery quiz|interactive quiz)\b", clean_m, re.I))
     is_pure_notes = bool(re.match(r"^(?:download pdf study guide|download pdf|generate pdf|study notes|notes|download roadmap pdf)\b", clean_m, re.I))
-    is_pure_img = bool(re.match(r"^(?:draw ai diagram|ai diagram|generate diagram|diagram|show diagram|draw diagram)\b", clean_m, re.I))
+    is_pure_img = bool(re.match(r"^(?:draw ai diagram|ai diagram|generate diagram|diagram|show diagram|draw diagram|generate image|study visual)\b", clean_m, re.I))
     is_pure_path = bool(re.search(r"\b(?:show learning path|learning path|road map|roadmap|curriculum|syllabus|study plan|how to learn|path to learn|steps to master)\b", clean_m, re.I))
-    is_pure_simpler = bool(re.match(r"^(?:explain simpler|simpler|explain it simply|explain simply|easy format)\b", clean_m, re.I))
+    is_pure_simpler = bool(re.match(r"^(?:explain simpler|simpler|explain it simply|explain simply|easy format|step by step)\b", clean_m, re.I))
     is_pure_revise = bool(re.match(r"^(?:flashcards|flash cards|revise)\b", clean_m, re.I))
 
     concept_query = message
-    if is_pure_deep and active_topic:
-        concept_query = active_topic
-    elif is_pure_quiz and active_topic:
+    if is_pure_quiz and active_topic:
         concept_query = active_topic
     elif is_pure_notes and active_topic:
         concept_query = active_topic
@@ -1072,9 +1065,7 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
         concept_query = active_topic
 
     mode = detect_mode(message, explicit_mode)
-    if is_pure_deep:
-        mode = "deep"
-    elif is_pure_quiz:
+    if is_pure_quiz:
         mode = "quiz"
     elif is_pure_notes:
         mode = "notes"
@@ -1236,46 +1227,39 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
             img_res = gen.generate_image(clean_prompt)
             is_creative = img_res.get("mode") == "creative_image"
 
-            if is_creative:
-                # Clean title for creative artwork
-                title_words = [w for w in re.sub(r'[^a-zA-Z0-9 ]', '', clean_prompt).split() if w.lower() not in ("a", "an", "the", "of", "in", "with", "on", "and", "for", "to", "by", "from", "at", "detailed", "sharp", "8k", "cinematic", "lighting", "resolution")]
-                clean_title = " ".join(title_words[:5]).title() if title_words else "Visual Artwork"
-
-                if is_remixed and remix_style_label:
-                    remix_notice = f"✨ Remixed into {remix_style_label} style based on your active concept!"
-                else:
-                    remix_notice = f"I generated a high-definition neural visual based on your prompt: \"{clean_prompt}\"!"
+            if is_creative or img_res.get("mode") in ("study_image", "creative_image"):
+                # Clean title for educational study visual
+                title_words = [w for w in re.sub(r'[^a-zA-Z0-9 ]', '', clean_prompt).split() if w.lower() not in ("a", "an", "the", "of", "in", "with", "on", "and", "for", "to", "by", "from", "at", "detailed", "sharp", "8k", "cinematic", "lighting", "resolution", "diagram", "image", "visual", "draw")]
+                clean_title = " ".join(title_words[:5]).title() if title_words else "Educational Study Concept"
 
                 reply_text = (
-                    f"✦ AI Image Synthesis: \"{clean_title}\" 🎨\n\n"
-                    f"{remix_notice}\n\n"
-                    f"◈ Visual Synthesis Breakdown:\n"
-                    f"• Prompt Subject: Accurately generated to reflect your exact instructions and fine details.\n"
-                    f"• Lighting & Ambiance: Rendered with dynamic illumination, atmospheric depth, and vibrant color balance.\n"
-                    f"• Canvas Specs: 1024×1024 high-resolution neural generation.\n\n"
-                    f"💡 Creative Iteration Tips for You & Your Friends:\n"
-                    f"• Photorealistic Style: Append \"photorealistic 8k, shot on 35mm lens, depth of field\"\n"
-                    f"• Cyberpunk / Sci-Fi: Append \"neon glow, rainy street reflections, futuristic sci-fi aesthetic\"\n"
-                    f"• 3D Animation: Append \"Pixar 3D animation style, cute character render, soft ambient occlusion\"\n"
-                    f"• Anime / Manga: Append \"Studio Ghibli style, vibrant watercolor, lush background\"\n"
-                    f"• Dramatic Cinematic: Append \"anamorphic lens flare, volumetric rays, epic scale\"\n\n"
-                    f"Click any style chip below to remix this image or type a new idea!"
+                    f"✦ Educational Study Visual: \"{clean_title}\" 📚\n\n"
+                    f"I have synthesized a high-definition educational study visual to support your learning on: \"{clean_prompt}\"!\n\n"
+                    f"◈ Study Breakdown & Conceptual Focus:\n"
+                    f"• Core Curriculum Topic: Visually maps out {clean_title} to help you and your friends master this subject with high conceptual clarity.\n"
+                    f"• Pedagogical Design: Structured with clean educational contrast and labeled structures for active recall and exam prep.\n"
+                    f"• Canvas Specs: High-definition 1024×1024 academic visual infographic.\n\n"
+                    f"💡 Group Study & Revision Tips for You & Your Friends:\n"
+                    f"• Active Recall Practice: Discuss this visual with your friends and explain one key component from memory without checking notes!\n"
+                    f"• Syllabus Connection: Link this diagram to your active learning module in Capacity Connect.\n"
+                    f"• Quick Sketch Drill: Practice drawing a 60-second summary sketch on paper for rapid exam revision.\n\n"
+                    f"Select a study action below to take an interactive quiz, generate printable study notes, or explore step-by-step!"
                 )
                 reply_text = reply_text.replace("**", "")
 
                 suggestions = [
-                    "Make it Photorealistic 📸",
-                    "Cyberpunk Neon Theme 🌌",
-                    "3D Pixar Animation Style ✨",
-                    "Studio Ghibli Anime Style 🖌️",
-                    "Try Another Prompt 🎨"
+                    "Quiz me & my friends on this 🎯",
+                    "Download PDF Study Notes 📄",
+                    "Explain concept step-by-step 🌿",
+                    "Show complete study roadmap 🧭",
+                    "Ask another study question 💡"
                 ]
 
                 return {
                     "reply": reply_text,
                     "image": img_res.get("url"),
                     "mode": "image",
-                    "image_mode": "creative_image",
+                    "image_mode": "study_image",
                     "prompt": clean_prompt,
                     "suggestions": suggestions
                 }
@@ -1354,9 +1338,9 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
         target_card_topic = concept_query if is_pure_revise else message
         if tk:
             txt, cards = flashcards(tk, sk)
-            return {"reply": txt, "mode": mode, "cards": cards, "suggestions": ["Quiz me on this 🎯", "Download PDF study guide 📄", "Deep explanation 🔥"]}
+            return {"reply": txt, "mode": mode, "cards": cards, "suggestions": ["Quiz me on this 🎯", "Download PDF study guide 📄", "Explain step-by-step 🌿"]}
         txt, cards = dynamic_flashcards(target_card_topic)
-        return {"reply": txt, "mode": mode, "cards": cards, "suggestions": ["Quiz me on this 🎯", "Download PDF study guide 📄", "Deep explanation 🔥"]}
+        return {"reply": txt, "mode": mode, "cards": cards, "suggestions": ["Quiz me on this 🎯", "Download PDF study guide 📄", "Explain step-by-step 🌿"]}
 
     # ─────────────────────────────────────────────────────────────────────────────
     # ── 5. Socratic Guiding Dialogue Mode ("socratic")
@@ -1393,8 +1377,8 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     if mode == "research":
         llm_reply = _llm_respond(f"Provide a detailed research analysis and comparative study on: '{concept_query}'. Contrast approaches, highlight trade-offs, state-of-the-art developments, and industry benchmarks.", context, history, extra, mode)
         if llm_reply:
-            return {"reply": llm_reply, "mode": mode, "suggestions": ["Deep explanation 🔥", "Download research PDF 📄", "Quiz me on this 🎯"]}
-        return {"reply": research_mode(concept_query), "mode": mode, "suggestions": ["Deep explanation 🔥", "Download research PDF 📄", "Quiz me on this 🎯"]}
+            return {"reply": llm_reply, "mode": mode, "suggestions": ["Download research PDF 📄", "Quiz me on this 🎯", "Explain step-by-step 🌿"]}
+        return {"reply": research_mode(concept_query), "mode": mode, "suggestions": ["Download research PDF 📄", "Quiz me on this 🎯", "Explain step-by-step 🌿"]}
 
     # ─────────────────────────────────────────────────────────────────────────────
     # ── 7. Math & Formula Solver ("math")
@@ -1445,56 +1429,7 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
         return {"reply": learning_path(clean_path_topic, context), "mode": "path", "suggestions": ["Let's start learning 🚀", "Draw visual roadmap 🎨", "Download roadmap PDF 📄", "Quiz my Python level 🎯"]}
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # ── 9. Deep Technical Explanations ("deep")
-    # ─────────────────────────────────────────────────────────────────────────────
-    if mode == "deep":
-        target_deep_topic = concept_query if is_pure_deep else message
-        clean_deep_topic = extract_clean_concept_title(target_deep_topic) or target_deep_topic.title()
-
-        # Disambiguate if topic resolved to "Deep Explanation" or generic
-        generic_deep_terms = ("deep explanation", "deep", "explain deeper", "go deeper", "in detail", "master this", "concept", "none", "")
-        if not clean_deep_topic or clean_deep_topic.lower() in generic_deep_terms:
-            if active_topic and active_topic.lower() not in generic_deep_terms:
-                clean_deep_topic = active_topic
-            else:
-                return {
-                    "reply": (
-                        "✦ In-Depth Technical Deep Dive 🔍\n\n"
-                        "Which topic or architectural concept would you like to explore in detail?\n\n"
-                        "Let me know a concept—such as Python Variables, Decorators, Concurrency, Memory Management, or OOP Architecture—and I will break down its internal mechanics, production code, and trade-offs!"
-                    ),
-                    "mode": "deep",
-                    "suggestions": ["Python Variables 🌿", "Decorators & Closures ⚙️", "Memory & GC 🧠", "OOP Architecture 🏗️"]
-                }
-
-        deep_prompt = (
-            f"You are Sastra, an elite AI software engineering tutor for Capacity Connect. "
-            f"Provide a comprehensive, clear, and engaging technical deep dive on: '{clean_deep_topic}'.\n\n"
-            f"Write naturally, thoroughly, and practically. Do NOT follow a rigid 7-numbered template or use artificial mathematical formulas (like f(D, M) -> E). "
-            f"Instead, deliver a clear, expert technical breakdown across these key areas:\n"
-            f"✦ {clean_deep_topic} — Comprehensive Technical Deep Dive\n\n"
-            f"◈ 1. Core Concept & Architectural Motivation:\n"
-            f"Explain what {clean_deep_topic} is, why it was designed, and the concrete problems it solves in software architecture.\n\n"
-            f"◈ 2. Under the Hood & Internal Mechanics:\n"
-            f"Explain how it works internally (memory allocation, call stack/heap interaction, runtime state transitions, or symbol resolution).\n\n"
-            f"❖ 3. Practical Production Implementation:\n"
-            f"Provide a realistic, robust code walkthrough with comments showing proper error handling and real-world best practices.\n\n"
-            f"◈ 4. Performance, Complexity & Trade-offs:\n"
-            f"Discuss Big-O time and space complexity, memory footprints, and practical bottlenecks.\n\n"
-            f"◈ 5. Common Gotchas & Senior Best Practices:\n"
-            f"Highlight subtle edge cases, common bugs, and production-grade advice.\n\n"
-            f"💡 Key Takeaway: 1-2 sentence synthesis for senior software engineers.\n\n"
-            f"Explain with deep, thorough technical clarity. Do NOT output raw markdown double asterisks (**)."
-        )
-        llm_reply = _llm_respond(deep_prompt, context, history, extra, mode)
-        if llm_reply:
-            return {"reply": llm_reply, "mode": mode, "suggestions": ["Take mastery quiz 🎯", "Download PDF study guide 📄", "Show learning path 🧭", "Explain simpler 🌿"]}
-        if tk:
-            return {"reply": deep_explain(tk, sk, skill, frustrated, history), "mode": mode, "suggestions": ["Take mastery quiz 🎯", "Download PDF study guide 📄", "Show learning path 🧭", "Explain simpler 🌿"]}
-        return {"reply": dynamic_deep_explain(clean_deep_topic), "mode": mode, "suggestions": ["Take mastery quiz 🎯", "Download PDF study guide 📄", "Show learning path 🧭", "Explain simpler 🌿"]}
-
-    # ─────────────────────────────────────────────────────────────────────────────
-    # ── 10. Learn Mode (Intelligent Adaptive Tutor)
+    # ── 9. Learn Mode (Intelligent Adaptive Tutor)
     # ─────────────────────────────────────────────────────────────────────────────
     if mode == "learn" or explicit_mode == "learn":
         clean_concept = extract_clean_concept_title(concept_query if is_pure_simpler else message)
@@ -1515,11 +1450,11 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
             )
             llm_reply = _llm_respond(learn_prompt, context, history, extra, "learn")
             if llm_reply:
-                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Deep explanation 🔥", "Download PDF study guide 📄", "Quiz me on this 🎯", "Draw AI diagram 🎨"]}
+                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain step-by-step 🌿", "Draw study diagram 🎨"]}
             if tk:
                 txt = teach_topic_concise(tk, sk)
-                return {"reply": txt, "mode": "learn", "suggestions": ["Deep explanation 🔥", "Download PDF study guide 📄", "Quiz me on this 🎯", "Draw AI diagram 🎨"]}
-            return {"reply": dynamic_easy_learn(target_learn_topic), "mode": "learn", "suggestions": ["Deep explanation 🔥", "Download PDF study guide 📄", "Quiz me on this 🎯", "Draw AI diagram 🎨"]}
+                return {"reply": txt, "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain step-by-step 🌿", "Draw study diagram 🎨"]}
+            return {"reply": dynamic_easy_learn(target_learn_topic), "mode": "learn", "suggestions": ["Quiz me & my friends 🎯", "Download PDF study guide 📄", "Explain step-by-step 🌿", "Draw study diagram 🎨"]}
         else:
             # Fluent, natural conversational tutor response for open-ended queries, comparisons, and general discussions
             chat_prompt = (
@@ -1532,7 +1467,7 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
             )
             llm_reply = _llm_respond(chat_prompt, context, history, extra, "learn")
             if llm_reply:
-                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Explain simpler 🌿", "Deep explanation 🔥", "Quiz me 🎯", "Download PDF 📄"]}
+                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Explain simpler 🌿", "Quiz me & my friends 🎯", "Download PDF notes 📄", "Draw study visual 🎨"]}
             if tk:
                 txt = teach_topic_concise(tk, sk)
                 return {"reply": txt, "mode": "learn", "suggestions": suggestions_for("learn", tk)}

@@ -47,27 +47,25 @@ class ImageGenerator:
         if self.is_educational_diagram_request(prompt):
             return self._generate_educational_diagram(prompt)
 
-        # 2. For all creative, artistic, scenic, character, sci-fi, and general visual prompts:
-        # Route to the AI Neural Text-to-Image Generation Engine
+        # Route to Educational Study Visual Synthesis
         return self._generate_neural_image(prompt, size=size, model=model)
 
     def _generate_neural_image(self, prompt, size="1024x1024", model="flux"):
-        """High-definition neural AI image synthesis using text-to-image foundation models."""
+        """High-definition educational study visual synthesis for academic concepts, science, and computing."""
         import random
         clean_p = prompt.strip()
 
-        # Check if user already specified detailed style modifiers
-        has_style = any(w in clean_p.lower() for w in (
-            "photorealistic", "cinematic", "8k", "hyperrealistic", "unreal engine",
-            "anime", "watercolor", "illustration", "oil painting", "digital art",
-            "3d render", "pixar", "isometric", "cyberpunk", "studio portrait",
-            "studio lighting", "vibrant", "octane render"
+        # Enhance prompt specifically for clear, readable educational study diagrams and academic visual infographics
+        study_enhancers = "clear educational study diagram, labeled academic concept infographic, pedagogical concept visual, clean scientific illustration, high resolution, sharp focus, 8k"
+        
+        has_study_cue = any(w in clean_p.lower() for w in (
+            "study", "diagram", "infographic", "scientific", "concept", "anatomy", "architecture", "flowchart", "labeled", "educational", "roadmap"
         ))
 
-        if not has_style:
-            enhanced_prompt = f"{clean_p}, high quality digital art, cinematic lighting, sharp focus, 8k resolution, detailed"
+        if not has_study_cue:
+            enhanced_prompt = f"{clean_p}, {study_enhancers}"
         else:
-            enhanced_prompt = f"{clean_p}, sharp focus, 8k resolution, high quality"
+            enhanced_prompt = f"{clean_p}, clear educational visual, sharp focus, high definition"
 
         seed = random.randint(1000, 999999)
 
@@ -90,8 +88,8 @@ class ImageGenerator:
             "prompt": clean_p,
             "enhanced_prompt": enhanced_prompt,
             "seed": seed,
-            "mode": "creative_image",
-            "provider": "neural_ai_model"
+            "mode": "study_image",
+            "provider": "sastra_study_visual_engine"
         }
 
     def edit_image(self, image_data, prompt, size="1024x1024", model="stable-diffusion"):

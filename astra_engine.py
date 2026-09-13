@@ -744,7 +744,7 @@ def teach_topic(topic_key, subtopic_key, skill_level="beginner", is_frustrated=F
         out.append("⚠️ Common Mistakes to Avoid:\n" + "\n".join(f"• {m}" for m in subtopic["common_mistakes"]) + "\n")
 
     out.append(f"🎯 Quick Practice Challenge:\n{subtopic['practice']}\n")
-    out.append("💡 Select 'Quiz' to test your understanding, 'Deep Explanations' for internal mechanics, or 'Download PDF' for printable notes!")
+    out.append("💡 Select 'Quiz' to test your understanding, 'Study Notes' for printable PDF notes, or 'Study Visuals' for diagrams!")
     return "\n".join(out)
 
 

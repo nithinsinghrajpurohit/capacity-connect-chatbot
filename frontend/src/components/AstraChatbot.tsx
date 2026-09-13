@@ -16,7 +16,6 @@ import {
   Layers,
   FileText,
   FileDown,
-  Flame,
   CheckCircle2,
   Copy,
   Check,
@@ -47,8 +46,7 @@ interface Message {
 
 const MODES = [
   { id: 'learn', label: 'Learn', icon: BookOpen, desc: 'Adaptive tutoring' },
-  { id: 'deep', label: 'Deep Explanations', icon: Flame, desc: '11-section mastery' },
-  { id: 'image', label: 'AI Image & Art', icon: ImageIcon, desc: 'Neural Text-to-Image & Blueprints' },
+  { id: 'image', label: 'Study Visuals', icon: ImageIcon, desc: 'Educational Concept Diagrams' },
   { id: 'notes', label: 'Study Notes & PDF', icon: FileText, desc: 'Synthesize & PDF Export' },
   { id: 'socratic', label: 'Socratic', icon: HelpCircle, desc: 'Guiding dialogue' },
   { id: 'quiz', label: 'Quiz', icon: CheckCircle2, desc: 'Interactive testing' },
@@ -446,7 +444,7 @@ export const AstraChatbot: React.FC<{
 
       setLoadingStatus(
         isImageGenRequest
-          ? 'Synthesizing neural AI visual imagery...'
+          ? 'Synthesizing educational study visual...'
           : sentImage
           ? 'Performing multimodal vision reasoning...'
           : 'Sastra formulating answer...'
@@ -909,15 +907,15 @@ export const AstraChatbot: React.FC<{
                             <span className="flex items-center gap-1.5 font-semibold text-cyan-400">
                               <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                               {msg.image.startsWith('data:image/svg')
-                                ? '📐 Educational Blueprint & Architecture'
-                                : '✦ AI Neural Visual Synthesis (1024×1024)'}
+                                ? '📐 Educational Blueprint & Study Diagram'
+                                : '📚 Educational Study Visual (1024×1024)'}
                             </span>
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => {
                                   const a = document.createElement('a');
                                   a.href = msg.image!;
-                                  a.download = `sastra-ai-creation-${Date.now()}.${msg.image!.startsWith('data:image/svg') ? 'svg' : 'jpg'}`;
+                                  a.download = `sastra-study-visual-${Date.now()}.${msg.image!.startsWith('data:image/svg') ? 'svg' : 'jpg'}`;
                                   a.target = '_blank';
                                   document.body.appendChild(a);
                                   a.click();
@@ -942,7 +940,7 @@ export const AstraChatbot: React.FC<{
                           <div className="relative rounded-xl overflow-hidden bg-[#070d1e] flex items-center justify-center min-h-[160px]">
                             <img
                               src={msg.image}
-                              alt="AI Visual Synthesis"
+                              alt="Educational Study Visual"
                               className="w-full h-auto max-h-[480px] object-contain rounded-xl block"
                               loading="eager"
                             />
