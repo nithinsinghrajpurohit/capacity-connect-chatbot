@@ -896,11 +896,12 @@ export const AstraChatbot: React.FC<{
 
                       {/* Attached Image Preview */}
                       {msg.image && (
-                        <div className="mb-3 overflow-hidden rounded-xl border border-slate-700/60 bg-slate-950/80 shadow-md">
+                        <div className="mb-3 overflow-hidden rounded-2xl border border-slate-200/90 bg-[#070d1e] shadow-md p-1">
                           <img
                             src={msg.image}
-                            alt="Visual illustration"
-                            className="w-full max-h-[420px] object-contain rounded-lg"
+                            alt="Visual Concept Diagram"
+                            className="w-full h-auto max-h-[460px] object-contain rounded-xl block"
+                            loading="eager"
                           />
                         </div>
                       )}

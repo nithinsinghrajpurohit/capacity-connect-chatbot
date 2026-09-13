@@ -26,10 +26,14 @@ DEEP_TRIGGERS = ["deep explanation", "explain completely", "teach me", "explain 
 SOCRATIC_TRIGGERS = ["quiz me step by step", "ask me guiding", "socratic", "don't tell me the answer",
                      "let me figure", "guide me", "hint"]
 CODE_TRIGGERS = ["debug", "error", "traceback", "fix my code", "what's wrong with", "code review"]
-MATH_TRIGGERS = ["solve", "equation", "calculate", "derivative", "integral", "probability"]
-PATH_TRIGGERS = ["learning path", "roadmap", "master ", "become a ", "study plan", "prepare for interview"]
-FLASH_TRIGGERS = ["flashcard", "flash card", "active recall", "memorize", "revise quickly"]
+PATH_TRIGGERS = [
+    "learning path", "road map", "roadmap", "curriculum", "syllabus", "study plan",
+    "how to learn", "path to learn", "where to start", "steps to master", "how should i learn",
+    "master ", "become a ", "prepare for interview"
+]
 PDF_TRIGGERS = ["pdf", "study guide", "cheat sheet", "handout", "printable", "download notes"]
+FLASH_TRIGGERS = ["flashcard", "flash card", "flashcards", "quick revision", "revise", "spaced repetition", "recall", "review cards"]
+MATH_TRIGGERS = ["solve equation", "calculate", "derivative", "integral", "matrix", "linear algebra", "calculus", "probability", "statistics", "math problem"]
 PROJECT_TRIGGERS = ["build a project", "project idea", "capstone", "portfolio project", "mini project"]
 RESEARCH_TRIGGERS = ["research", "compare", "pros and cons", "literature", "survey of", "state of the art"]
 
@@ -77,6 +81,28 @@ def is_quiz_question_message(msg_text):
         re.search(r'\b(quiz|question|which option|what is the output|what will be printed|choose the correct|which of the following|your answer|drop your answer)\b', lower)
     )
     return has_options or (has_question_cues and ("option" in lower or "choice" in lower))
+
+def extract_clean_concept_title(query):
+    """Extracts a clean, canonical concept title from conversational user queries, stripping fillers and typos."""
+    if not query:
+        return None
+    # Strip emojis
+    text = re.sub(r"[\U00010000-\U0010ffff\u2600-\u27bf\u2300-\u23ff]", "", query).strip()
+    # Strip conversational wrappers and question templates
+    text = re.sub(r"^(?:i can you|can you|could you|please|kindly|tell me about|tell me|explain to me|explain|what is|what are|how does|how do i|teach me|guide to|deep dive into|deep explanation of|learn about|learn)\s+", "", text, flags=re.I).strip()
+    text = re.sub(r"^(?:the|a|an)\s+", "", text, flags=re.I).strip()
+    text = re.sub(r"^(?:complete|comprehensive|full)\s+", "", text, flags=re.I).strip()
+    text = text.strip("'\" :;,.?!")
+
+    # If the remaining text is trivial, a small talk greeting, or a conversational command, return None
+    non_topics = (
+        "lets start learning", "let's start learning", "start learning", "start with first topic", "first topic",
+        "hi", "hello", "hey", "next", "continue", "yes", "no", "ok", "okay", "help", "start", "lets start", "let's start",
+        "move on", "next topic", "start from scratch", "start from beginning"
+    )
+    if not text or len(text) < 2 or text.lower() in non_topics:
+        return None
+    return text.title()
 
 def extract_quiz_choice(message, last_quiz_msg=None):
     """Extracts a user's MCQ option choice (A, B, C, or D) without mistaking it for a programming topic."""
@@ -982,7 +1008,7 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     is_pure_quiz = bool(re.match(r"^(?:quiz me on this|quiz me|quiz|take quiz|test me|take mastery quiz|interactive quiz)\b", clean_m, re.I))
     is_pure_notes = bool(re.match(r"^(?:download pdf study guide|download pdf|generate pdf|study notes|notes|download roadmap pdf)\b", clean_m, re.I))
     is_pure_img = bool(re.match(r"^(?:draw ai diagram|ai diagram|generate diagram|diagram|show diagram|draw diagram)\b", clean_m, re.I))
-    is_pure_path = bool(re.match(r"^(?:show learning path|learning path|roadmap|curriculum)\b", clean_m, re.I))
+    is_pure_path = bool(re.search(r"\b(?:show learning path|learning path|road map|roadmap|curriculum|syllabus|study plan|how to learn|path to learn|steps to master)\b", clean_m, re.I))
     is_pure_simpler = bool(re.match(r"^(?:explain simpler|simpler|explain it simply|explain simply|easy format)\b", clean_m, re.I))
     is_pure_revise = bool(re.match(r"^(?:flashcards|flash cards|revise)\b", clean_m, re.I))
 
@@ -1026,6 +1052,58 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     if context and not extra.get("course_title") and context.get("enrollments"):
         extra = dict(extra)
         extra["course_title"] = context["enrollments"][0]["title"]
+
+    # ── Learning Progression & Lesson Directives (e.g. "lets start learning", "start with first topic") ──
+    is_start_learning = bool(re.search(
+        r"\b(?:lets start learning|let'?s start learning|start learning|let'?s start|lets start|start with first topic|first topic|begin learning|start from beginning|start from scratch|start from zero|start topic 1|begin topic 1)\b",
+        clean_m,
+        re.I
+    ))
+    if is_start_learning:
+        curriculum_topic = active_topic or "Python"
+        if "python" in (active_topic or "").lower() or "python" in clean_m or not active_topic:
+            curriculum_topic = "Python"
+
+        lesson_prompt = (
+            f"The learner {u_name} wants to start learning {curriculum_topic} from the very beginning (Topic 1: Variables, Data Types & Basic Output).\n\n"
+            f"Act as a world-class, engaging AI coding tutor. Deliver Topic 1 with high clarity and interactive enthusiasm:\n"
+            f"✦ Lesson 1: Variables, Data Types & Output in {curriculum_topic} 🚀\n\n"
+            f"◈ 1. Core Concept (What & Why):\n"
+            f"Explain clearly what variables and data types are, and how assignment works in {curriculum_topic}.\n\n"
+            f"◈ 2. Practical Syntax & Examples:\n"
+            f"Provide clean, realistic code examples showing string, integer, float, and boolean variables with modern print formatting (f-strings).\n\n"
+            f"◈ 3. Relatable Analogy:\n"
+            f"Give an intuitive everyday mental model.\n\n"
+            f"◈ 4. Your Turn (Interactive Micro-Challenge):\n"
+            f"Give {u_name} a friendly, specific mini-task to try right now (e.g. declare two variables and print a greeting), and ask them to reply with their code or answer!\n\n"
+            f"Do NOT output raw markdown double asterisks (**)."
+        )
+        llm_reply = _llm_respond(lesson_prompt, context, history, extra, "learn")
+        if not llm_reply:
+            llm_reply = (
+                f"✦ Lesson 1: Variables, Data Types & Output in {curriculum_topic} 🚀\n\n"
+                f"◈ 1. What is a Variable?\n"
+                f"In {curriculum_topic}, a variable is a named storage container that holds data in computer memory. You don't need to specify types explicitly; {curriculum_topic} automatically figures it out!\n\n"
+                f"◈ 2. Code Example:\n"
+                f"```python\n"
+                f"# Creating variables\n"
+                f"learner_name = \"{u_name}\"\n"
+                f"current_level = 1\n"
+                f"xp_score = 98.5\n"
+                f"is_ready = True\n\n"
+                f"# Printing formatted output\n"
+                f"print(f\"Welcome {learner_name}! Level: {current_level} | Ready: {is_ready}\")\n"
+                f"```\n\n"
+                f"◈ 3. Everyday Analogy:\n"
+                f"Think of a variable as a labeled storage box in your office. The label on the box is the variable name (e.g. `learner_name`), and the contents inside is the value (`\"{u_name}\"`).\n\n"
+                f"◈ 4. Your Turn (Mini-Challenge):\n"
+                f"Try typing your own two variables: `favorite_food = \"...\"` and `rating = 10`, and print them! What code would you write? Reply with your code and I will check it!"
+            )
+        return {
+            "reply": llm_reply,
+            "mode": "learn",
+            "suggestions": ["Here is my code 💻", "Explain data types simply 🌿", "Take a quick quiz 🎯", "Move to Topic 2: Conditions 🔄"]
+        }
 
     # ── Document Analysis Mode (PDF / Word / Text Files) ──
     if file_data:
@@ -1215,20 +1293,50 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     # ─────────────────────────────────────────────────────────────────────────────
     if mode == "path":
         target_path_topic = concept_query if is_pure_path else message
-        llm_reply = _llm_respond(f"Provide a comprehensive, multi-phase curriculum learning path roadmap to master: {target_path_topic}.", context, history, extra, mode)
+        clean_path_topic = extract_clean_concept_title(target_path_topic) or "Python"
+        clean_path_topic = re.sub(r"\b(?:road\s*map|learning\s*path|curriculum|syllabus)\s*(?:of|for)?\s*", "", clean_path_topic, flags=re.I).strip() or "Python"
+
+        path_prompt = (
+            f"You are Sastra, an AI curriculum architect for Capacity Connect. "
+            f"The learner {u_name} requested a complete, structured learning roadmap for: '{clean_path_topic}'.\n\n"
+            f"Provide a comprehensive, beautifully structured roadmap from absolute zero to production mastery across 6 clear phases:\n"
+            f"✦ Comprehensive {clean_path_topic} Learning Roadmap — From Zero to Mastery 🚀\n\n"
+            f"◈ Phase 1: Core Foundations & Syntax\n"
+            f"• Key Topics: Variables, Data Types, Conditionals (if/elif/else), Loops (for/while), Functions & Scope.\n"
+            f"• Milestone Project: Command-line utility or interactive text game.\n\n"
+            f"◈ Phase 2: Data Structures & File Operations\n"
+            f"• Key Topics: Lists, Dictionaries, Tuples, Sets, List Comprehensions, File I/O (reading & writing JSON/CSV).\n"
+            f"• Milestone Project: Automated log file analyzer or contacts manager.\n\n"
+            f"◈ Phase 3: Object-Oriented & Modular Programming\n"
+            f"• Key Topics: Classes, Objects, Inheritance, Encapsulation, Custom Exceptions, Modules & Packages.\n"
+            f"• Milestone Project: Full Object-Oriented Management System with persistent data.\n\n"
+            f"◈ Phase 4: Intermediate & Production Patterns\n"
+            f"• Key Topics: Decorators, Generators, Context Managers, Error Handling, Virtual Environments (`venv`), Package Management (`pip`).\n"
+            f"• Milestone Project: Multi-source web API client with automated retries and logging.\n\n"
+            f"◈ Phase 5: Industry Specialization Tracks\n"
+            f"• 🌐 Web Development: FastAPI, Django, REST APIs, Database ORMs (SQLAlchemy, PostgreSQL).\n"
+            f"• 📊 Data Science & AI: NumPy, Pandas, Matplotlib, Machine Learning (Scikit-Learn, PyTorch).\n"
+            f"• ⚙️ Automation & Cloud: Task automation, Selenium/Playwright, AWS SDK (`boto3`), Docker.\n\n"
+            f"◈ Phase 6: Production Engineering & Capstone\n"
+            f"• Unit testing with `pytest`, Git version control, CI/CD automation, and deploying to cloud production.\n\n"
+            f"💡 Recommended Next Step: Ready to begin? Reply with 'Let's start learning' or click below to dive into Phase 1!\n\n"
+            f"Do NOT output raw markdown double asterisks (**)."
+        )
+        llm_reply = _llm_respond(path_prompt, context, history, extra, "path")
         if llm_reply:
-            return {"reply": llm_reply, "mode": mode, "suggestions": ["Start Phase 1 🚀", "Quiz me on this 🎯", "Download roadmap PDF 📄"]}
-        return {"reply": learning_path(target_path_topic, context), "mode": mode, "suggestions": ["Start Phase 1 🚀", "Quiz me on this 🎯", "Download roadmap PDF 📄"]}
+            return {"reply": llm_reply, "mode": "path", "suggestions": ["Let's start learning 🚀", "Draw visual roadmap 🎨", "Download roadmap PDF 📄", "Quiz my Python level 🎯"]}
+        return {"reply": learning_path(clean_path_topic, context), "mode": "path", "suggestions": ["Let's start learning 🚀", "Draw visual roadmap 🎨", "Download roadmap PDF 📄", "Quiz my Python level 🎯"]}
 
     # ─────────────────────────────────────────────────────────────────────────────
     # ── 9. Deep Technical Explanations ("deep")
     # ─────────────────────────────────────────────────────────────────────────────
     if mode == "deep":
         target_deep_topic = concept_query if is_pure_deep else message
+        clean_deep_topic = extract_clean_concept_title(target_deep_topic) or target_deep_topic.title()
         deep_prompt = (
-            f"You are in DEEP EXPLANATION MODE. Provide an exhaustive, rigorous, and deep architectural masterclass on: '{target_deep_topic}'.\n\n"
+            f"You are in DEEP EXPLANATION MODE. Provide an exhaustive, rigorous, and deep architectural masterclass on: '{clean_deep_topic}'.\n\n"
             f"Structure your response with deep technical rigor across these sections:\n"
-            f"✦ {target_deep_topic.title()} — Comprehensive Architectural Masterclass\n\n"
+            f"✦ {clean_deep_topic} — Comprehensive Architectural Masterclass\n\n"
             f"◈ 1. First Principles & Theoretical Foundation: Formal computer science/engineering definition, mathematical basis, and why this concept was designed.\n\n"
             f"◈ 2. Internal Mechanics & Memory Model: Explain how it operates under the hood (memory layout, stack vs heap allocation, pointers/references, runtime opcodes, hardware/compiler interaction).\n\n"
             f"◈ 3. Step-by-Step Execution Lifecycle: Detailed breakdown of runtime phases, state transitions, scope boundaries, and cleanup.\n\n"
@@ -1244,31 +1352,52 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
             return {"reply": llm_reply, "mode": mode, "suggestions": ["Take mastery quiz 🎯", "Download PDF study guide 📄", "Show learning path 🧭", "Explain simpler 🌿"]}
         if tk:
             return {"reply": deep_explain(tk, sk, skill, frustrated, history), "mode": mode, "suggestions": ["Take mastery quiz 🎯", "Download PDF study guide 📄", "Show learning path 🧭", "Explain simpler 🌿"]}
-        return {"reply": dynamic_deep_explain(target_deep_topic), "mode": mode, "suggestions": ["Take mastery quiz 🎯", "Download PDF study guide 📄", "Show learning path 🧭", "Explain simpler 🌿"]}
+        return {"reply": dynamic_deep_explain(clean_deep_topic), "mode": mode, "suggestions": ["Take mastery quiz 🎯", "Download PDF study guide 📄", "Show learning path 🧭", "Explain simpler 🌿"]}
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # ── 10. Learn Mode (Clear, Intuitive & Easy Format — Concise Definition + Example)
+    # ── 10. Learn Mode (Intelligent Adaptive Tutor)
     # ─────────────────────────────────────────────────────────────────────────────
     if mode == "learn" or explicit_mode == "learn":
-        target_learn_topic = concept_query if is_pure_simpler else message
-        learn_prompt = (
-            f"You are in LEARNING MODE. Provide a concise, clear, and brief explanation of: '{target_learn_topic}'.\n\n"
-            f"CRITICAL CONSTRAINT: Give LESS content. Focus strictly on a clear definition and a short practical example. Keep the response brief (about 10-14 lines total). Do NOT write long essays or multiple paragraphs.\n\n"
-            f"Required Format:\n"
-            f"✦ {target_learn_topic.title()} — Quick Learning Guide\n\n"
-            f"◈ Definition:\n(1-2 clear, simple sentences defining what it is in plain English)\n\n"
-            f"❯ Everyday Intuition:\n(1 relatable everyday analogy)\n\n"
-            f"❖ Code Example:\n(A concise 3-5 line practical code snippet or clear example)\n\n"
-            f"💡 Key Takeaway:\n(1 single sentence summarizing the main rule)\n\n"
-            f"Do NOT output raw markdown double asterisks (**)."
-        )
-        llm_reply = _llm_respond(learn_prompt, context, history, extra, "learn")
-        if llm_reply:
-            return {"reply": llm_reply, "mode": "learn", "suggestions": ["Deep explanation 🔥", "Download PDF study guide 📄", "Quiz me on this 🎯", "Draw AI diagram 🎨"]}
-        if tk:
-            txt = teach_topic_concise(tk, sk)
-            return {"reply": txt, "mode": "learn", "suggestions": ["Deep explanation 🔥", "Download PDF study guide 📄", "Quiz me on this 🎯", "Draw AI diagram 🎨"]}
-        return {"reply": dynamic_easy_learn(target_learn_topic), "mode": "learn", "suggestions": ["Deep explanation 🔥", "Download PDF study guide 📄", "Quiz me on this 🎯", "Draw AI diagram 🎨"]}
+        clean_concept = extract_clean_concept_title(concept_query if is_pure_simpler else message)
+
+        # If user explicitly asked for a single isolated concept or clicked "Explain simpler":
+        if clean_concept and (explicit_mode == "learn" or is_pure_simpler or tk):
+            target_learn_topic = clean_concept
+            learn_prompt = (
+                f"You are in LEARNING MODE. Provide a concise, clear, and brief explanation of: '{target_learn_topic}'.\n\n"
+                f"CRITICAL CONSTRAINT: Focus strictly on a clear definition and a short practical example. Keep the response brief (about 10-14 lines total). Do NOT write long essays.\n\n"
+                f"Required Format:\n"
+                f"✦ {target_learn_topic} — Quick Learning Guide\n\n"
+                f"◈ Definition:\n(1-2 clear, simple sentences defining what it is in plain English)\n\n"
+                f"❯ Everyday Intuition:\n(1 relatable everyday analogy)\n\n"
+                f"❖ Code Example:\n(A concise 3-5 line practical code snippet or clear example)\n\n"
+                f"💡 Key Takeaway:\n(1 single sentence summarizing the main rule)\n\n"
+                f"Do NOT output raw markdown double asterisks (**)."
+            )
+            llm_reply = _llm_respond(learn_prompt, context, history, extra, "learn")
+            if llm_reply:
+                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Deep explanation 🔥", "Download PDF study guide 📄", "Quiz me on this 🎯", "Draw AI diagram 🎨"]}
+            if tk:
+                txt = teach_topic_concise(tk, sk)
+                return {"reply": txt, "mode": "learn", "suggestions": ["Deep explanation 🔥", "Download PDF study guide 📄", "Quiz me on this 🎯", "Draw AI diagram 🎨"]}
+            return {"reply": dynamic_easy_learn(target_learn_topic), "mode": "learn", "suggestions": ["Deep explanation 🔥", "Download PDF study guide 📄", "Quiz me on this 🎯", "Draw AI diagram 🎨"]}
+        else:
+            # Fluent, natural conversational tutor response for open-ended queries, comparisons, and general discussions
+            chat_prompt = (
+                f"You are Sastra, an intelligent, empathetic AI learning companion for Capacity Connect. "
+                f"Answer the learner {u_name}'s message conversationally, clearly, and directly:\n\n"
+                f"User Message: '{message}'\n\n"
+                f"Provide an engaging, natural, and helpful response. Use clean formatting with structured points (✦, ◈, ❯, ❖, 📌, 💡) if structuring concepts or steps. "
+                f"Do NOT force a rigid 'Quick Learning Guide' template unless defining a single isolated concept. "
+                f"NEVER output raw markdown double asterisks (**)."
+            )
+            llm_reply = _llm_respond(chat_prompt, context, history, extra, "learn")
+            if llm_reply:
+                return {"reply": llm_reply, "mode": "learn", "suggestions": ["Explain simpler 🌿", "Deep explanation 🔥", "Quiz me 🎯", "Download PDF 📄"]}
+            if tk:
+                txt = teach_topic_concise(tk, sk)
+                return {"reply": txt, "mode": "learn", "suggestions": suggestions_for("learn", tk)}
+            return {"reply": dynamic_easy_learn(clean_concept or "Core Programming Concept"), "mode": "learn", "suggestions": suggestions_for("learn", tk)}
 
     # ─────────────────────────────────────────────────────────────────────────────
     # ── Fallback Handling for Unmatched Queries

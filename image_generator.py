@@ -98,9 +98,104 @@ class ImageGenerator:
         """Synthesizes a clean SVG diagram card matching the topic."""
         p_lower = prompt.lower()
         
-        is_ai_topic = bool(re.search(r'\b(ai|artificial intelligence|machine learning|deep learning|neural network|neural net|data science|roadmap)\b', p_lower))
-        if is_ai_topic:
-            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="100%" height="100%">
+        is_python_roadmap = bool(
+            re.search(r'\bpython\b', p_lower) and re.search(r'\b(roadmap|road map|path|curriculum|syllabus|plan|learn|learning)\b', p_lower)
+        ) or bool(
+            re.search(r'\b(roadmap|road map)\b', p_lower) and not any(k in p_lower for k in ["java", "react", "c++", "rust", "go", "javascript"])
+        )
+        is_ai_topic = any(k in p_lower for k in ["ai", "machine learning", "ml", "neural", "deep learning", "artificial intelligence"])
+        
+        if is_python_roadmap:
+            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070d1e"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="step1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="step2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#0891b2"/>
+    </linearGradient>
+    <linearGradient id="step3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="step4" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="420" rx="20" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.1)"/>
+  
+  <!-- Header Banner -->
+  <rect x="30" y="22" width="740" height="48" rx="12" fill="rgba(255,255,255,0.04)" stroke="rgba(59,130,246,0.3)"/>
+  <text x="50" y="52" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="18" font-weight="bold">✦ PYTHON DEVELOPER LEARNING ROADMAP</text>
+  <text x="750" y="51" text-anchor="end" fill="#94a3b8" font-family="Inter, sans-serif" font-size="12">Sastra AI • From Zero to Mastery</text>
+
+  <!-- Flow connecting lines -->
+  <path d="M 120 165 L 680 165" stroke="#334155" stroke-width="4" stroke-dasharray="6"/>
+
+  <!-- Step 1: Core Syntax -->
+  <g transform="translate(40, 85)">
+    <rect width="160" height="155" rx="14" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+    <rect width="160" height="32" rx="12" fill="url(#step1)"/>
+    <text x="80" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="11" font-weight="bold">PHASE 1: SYNTAX</text>
+    <text x="14" y="55" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">🌿 Basics &amp; Logic</text>
+    <text x="14" y="76" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Variables &amp; Types</text>
+    <text x="14" y="94" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• If/Elif/Else Conditions</text>
+    <text x="14" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• For &amp; While Loops</text>
+    <text x="14" y="130" fill="#38bdf8" font-family="Inter, sans-serif" font-size="10">⚡ Milestone: Basic scripts</text>
+  </g>
+
+  <!-- Step 2: Data Structures & Files -->
+  <g transform="translate(230, 85)">
+    <rect width="160" height="155" rx="14" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+    <rect width="160" height="32" rx="12" fill="url(#step2)"/>
+    <text x="80" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="11" font-weight="bold">PHASE 2: DATA &amp; I/O</text>
+    <text x="14" y="55" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">📦 Collections</text>
+    <text x="14" y="76" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Lists, Tuples &amp; Sets</text>
+    <text x="14" y="94" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Dictionaries &amp; Compreh.</text>
+    <text x="14" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• File I/O (JSON, CSV)</text>
+    <text x="14" y="130" fill="#22d3ee" font-family="Inter, sans-serif" font-size="10">⚡ Milestone: Data parsers</text>
+  </g>
+
+  <!-- Step 3: OOP & Modularity -->
+  <g transform="translate(420, 85)">
+    <rect width="160" height="155" rx="14" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+    <rect width="160" height="32" rx="12" fill="url(#step3)"/>
+    <text x="80" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="11" font-weight="bold">PHASE 3: OOP</text>
+    <text x="14" y="55" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">⚙️ Architecture</text>
+    <text x="14" y="76" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Classes &amp; Objects</text>
+    <text x="14" y="94" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Inheritance &amp; Encaps.</text>
+    <text x="14" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Modules &amp; Packages</text>
+    <text x="14" y="130" fill="#c084fc" font-family="Inter, sans-serif" font-size="10">⚡ Milestone: OOP Systems</text>
+  </g>
+
+  <!-- Step 4: Specialization & Mastery -->
+  <g transform="translate(610, 85)">
+    <rect width="160" height="155" rx="14" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+    <rect width="160" height="32" rx="12" fill="url(#step4)"/>
+    <text x="80" y="21" text-anchor="middle" fill="#ffffff" font-family="Outfit, sans-serif" font-size="11" font-weight="bold">PHASE 4: MASTER</text>
+    <text x="14" y="55" fill="#f8fafc" font-family="Outfit, sans-serif" font-size="12" font-weight="bold">🚀 Real Projects</text>
+    <text x="14" y="76" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Web APIs (FastAPI)</text>
+    <text x="14" y="94" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Data/AI (Pandas, ML)</text>
+    <text x="14" y="112" fill="#94a3b8" font-family="Inter, sans-serif" font-size="10">• Automation &amp; Testing</text>
+    <text x="14" y="130" fill="#34d399" font-family="Inter, sans-serif" font-size="10">⚡ Milestone: Production Ready</text>
+  </g>
+
+  <!-- Bottom Interactive Guidance -->
+  <rect x="30" y="260" width="740" height="135" rx="14" fill="rgba(15,23,42,0.85)" stroke="rgba(255,255,255,0.08)"/>
+  <text x="50" y="292" fill="#38bdf8" font-family="Outfit, sans-serif" font-size="14" font-weight="bold">🎯 Step-by-Step Recommended Action Plan:</text>
+  <text x="50" y="318" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="12">1. Start with Phase 1: Master variables, logic, and loops by writing hands-on code.</text>
+  <text x="50" y="342" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="12">2. Move to Phase 2 &amp; 3: Learn lists, dictionaries, and classes to structure larger programs.</text>
+  <text x="50" y="366" fill="#34d399" font-family="Inter, sans-serif" font-size="12">3. Build your capstone: Pick Web (FastAPI) or Data/AI (Pandas) and deploy your first live app!</text>
+</svg>"""
+        elif is_ai_topic:
+            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420">
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#070d1e"/>
@@ -190,7 +285,7 @@ class ImageGenerator:
   <text x="50" y="364" fill="#34d399" font-family="Inter, sans-serif" font-size="12">3. Transition to deep learning, vision, and autonomous RAG agents using Sastra pipelines.</text>
 </svg>"""
         elif "variable" in p_lower:
-            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" width="100%" height="100%">
+            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" width="760" height="380">
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#070d1e"/>
@@ -256,7 +351,7 @@ class ImageGenerator:
   <text x="180" y="346" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="12">Variables are named labels pointing to memory objects, making reassignment instantaneous.</text>
 </svg>"""
         elif "quantum" in p_lower:
-            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" width="100%" height="100%">
+            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" width="760" height="380">
   <defs>
     <linearGradient id="bgGradQ" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#050a1a"/>
@@ -334,7 +429,7 @@ class ImageGenerator:
   <text x="180" y="342" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="12">Quantum machines compute by rotating state vectors in Hilbert space, evaluating vast solution spaces simultaneously.</text>
 </svg>"""
         elif "function" in p_lower:
-            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" width="100%" height="100%">
+            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" width="760" height="380">
   <defs>
     <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#080e21"/>
@@ -394,7 +489,7 @@ class ImageGenerator:
   <text x="270" y="330" fill="#cbd5e1" font-family="Inter, sans-serif" font-size="12">Functions are modular black boxes: predictable inputs in, clean transformed outputs out.</text>
 </svg>"""
         elif "loop" in p_lower:
-            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" width="100%" height="100%">
+            svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" width="760" height="360">
   <defs>
     <linearGradient id="bgGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#080e21"/>
@@ -440,7 +535,7 @@ class ImageGenerator:
 </svg>"""
         else:
             clean_title = re.sub(r'[^a-zA-Z0-9 ]', '', prompt).strip()[:40].title() or "Concept Architecture"
-            svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" width="100%" height="100%">
+            svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" width="760" height="360">
   <defs>
     <linearGradient id="bgGradGen" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#080e21"/>
