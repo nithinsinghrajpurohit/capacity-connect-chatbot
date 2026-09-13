@@ -21,11 +21,11 @@ import {
   Check,
   ChevronRight,
   User,
-  Eye,
   Loader2,
   Volume2,
   VolumeX,
   Paperclip,
+  Camera,
 } from 'lucide-react';
 
 interface Message {
@@ -558,6 +558,65 @@ export const AstraChatbot: React.FC<{
     reader.readAsDataURL(file);
   };
 
+  // Localhost-only detection: only enabled during local testing/debugging, hidden in production
+  const isLocalhost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname === '[::1]' ||
+      window.location.hostname.endsWith('.local'));
+
+  // Complete screenshot capture function for localhost debugging
+  const handleTakeScreenshot = async () => {
+    try {
+      if (!navigator.mediaDevices?.getDisplayMedia) {
+        alert('Screen capture API is not supported in this browser. Please use Chrome, Edge, or Firefox on desktop.');
+        return;
+      }
+      // Trigger native screen/window/tab capture
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: 'browser' },
+      });
+
+      const video = document.createElement('video');
+      video.autoplay = true;
+      video.muted = true;
+      video.srcObject = stream;
+
+      await new Promise<void>((resolve) => {
+        video.onloadedmetadata = () => {
+          video.play().then(() => resolve()).catch(() => resolve());
+        };
+      });
+
+      // Small delay to ensure the active frame is painted
+      await new Promise((r) => setTimeout(r, 200));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || window.innerWidth || 1280;
+      canvas.height = video.videoHeight || window.innerHeight || 720;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
+
+      // Stop all tracks so the browser sharing banner closes immediately
+      stream.getTracks().forEach((track) => track.stop());
+
+      const dataUrl = canvas.toDataURL('image/png');
+      setAttachedImage(dataUrl);
+
+      // Pre-fill prompt if user hasn't typed anything yet
+      if (!input.trim()) {
+        setInput('Here is a screenshot of what happened. Please inspect this, identify any errors or mistakes, and tell me how to fix them:');
+      }
+    } catch (err: any) {
+      if (err.name !== 'NotAllowedError' && err.message !== 'Permission denied') {
+        console.error('Screenshot capture failed:', err);
+      }
+    }
+  };
+
   const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -982,16 +1041,27 @@ export const AstraChatbot: React.FC<{
                 </div>
               )}
 
-              {/* Image Preview if attached */}
+              {/* Image / Screenshot Preview if attached */}
               {attachedImage && (
-                <div className="relative inline-flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-2xl border border-slate-200 max-w-xs">
-                  <Eye className="w-4 h-4 text-blue-500 shrink-0" />
-                  <span className="text-xs text-slate-600 truncate">
-                    Image attached (Vision / Image-to-Video)
-                  </span>
+                <div className="relative inline-flex items-center gap-2 bg-indigo-50/90 px-3 py-1.5 rounded-2xl border border-indigo-200/80 max-w-sm shadow-xs">
+                  <img
+                    src={attachedImage}
+                    alt="Screenshot"
+                    className="w-7 h-7 object-cover rounded-md border border-indigo-200 shadow-2xs shrink-0"
+                  />
+                  <div className="flex flex-col min-w-0 pr-1">
+                    <span className="text-xs text-indigo-900 font-semibold truncate flex items-center gap-1">
+                      📸 Screenshot Attached
+                    </span>
+                    <span className="text-[10px] text-indigo-600 truncate">
+                      Ready for Sastra Vision Analysis
+                    </span>
+                  </div>
                   <button
+                    type="button"
                     onClick={() => setAttachedImage(null)}
-                    className="p-1 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 ml-auto cursor-pointer"
+                    className="p-1 rounded-full hover:bg-indigo-200 text-indigo-400 hover:text-indigo-800 ml-auto cursor-pointer transition-colors"
+                    title="Remove screenshot"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -1032,6 +1102,21 @@ export const AstraChatbot: React.FC<{
                 >
                   <ImageIcon className="w-4 h-4" />
                 </button>
+
+                {/* Localhost-Only Complete Screenshot Debugger Button */}
+                {isLocalhost && (
+                  <button
+                    type="button"
+                    onClick={handleTakeScreenshot}
+                    className="p-2 text-indigo-600 hover:text-indigo-800 bg-indigo-50/80 hover:bg-indigo-100 rounded-full transition-all cursor-pointer border border-indigo-200/60 shadow-xs flex items-center gap-1"
+                    title="📸 Take Complete Screenshot (Localhost Debugger: Capture screen to inspect mistakes/errors)"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider pr-1 hidden sm:inline">
+                      Snap
+                    </span>
+                  </button>
+                )}
 
                 {/* Voice Input Button */}
                 <button
