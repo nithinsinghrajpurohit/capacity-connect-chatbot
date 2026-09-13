@@ -180,6 +180,8 @@ class GeminiAdapter(LLMAdapter):
     """Google Gemini adapter with native multimodal Vision, Voice, and advanced reasoning."""
     
     MODELS = [
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
         "gemini-3.6-flash",
         "gemini-flash-latest",
         "gemini-flash-lite-latest",

@@ -7,7 +7,7 @@ load_dotenv()
 LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'gemini')  # 'gemini', 'bynara', 'openai', 'ollama', 'rule_based'
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_BACKUP_KEY = os.getenv('GEMINI_BACKUP_KEY', '')
-GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.5-flash')
 
 # Bynara Claude Vision & Text Router Configuration
 BYNARA_BASE_URL = os.getenv('ANTHROPIC_BASE_URL', 'https://router.bynara.id/v1').rstrip('/')
