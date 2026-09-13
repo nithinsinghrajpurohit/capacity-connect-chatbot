@@ -569,9 +569,10 @@ export const AstraChatbot: React.FC<{
 
   const chatThreadRef = useRef<HTMLDivElement>(null);
   const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
+  const [screenshotNotice, setScreenshotNotice] = useState<string | null>(null);
 
   // Complete screenshot capture of the entire conversation thread done with Sastra AI
-  const captureFullChatScreenshot = async (mode: 'attach' | 'download' = 'attach') => {
+  const captureFullChatScreenshot = async () => {
     const el = chatThreadRef.current;
     if (!el) {
       alert('Chat thread container not found.');
@@ -586,6 +587,10 @@ export const AstraChatbot: React.FC<{
       const originalOverflow = el.style.overflow;
       const prevScrollTop = el.scrollTop;
 
+      // Ensure any lazy loaded images in chat thread are marked eager before capture
+      const lazyImages = el.querySelectorAll('img[loading="lazy"]');
+      lazyImages.forEach((img) => ((img as HTMLImageElement).loading = 'eager'));
+
       // Temporarily expand to entire scrollHeight so ALL conversation messages are fully rendered
       const fullHeight = Math.max(el.scrollHeight, el.offsetHeight, 600);
       const fullWidth = Math.max(el.scrollWidth, el.offsetWidth, 700);
@@ -594,20 +599,26 @@ export const AstraChatbot: React.FC<{
       el.style.maxHeight = 'none';
       el.style.overflow = 'visible';
 
-      // Capture full thread with html-to-image (supports Tailwind v4 modern oklch colors natively)
+      // Capture full thread with html-to-image
+      // fontEmbedCSS: '' and skipFonts: true prevent any cross-origin Google Fonts CSS SecurityError
       let dataUrl = '';
       try {
         dataUrl = await toPng(el, {
-          cacheBust: true,
           backgroundColor: '#fafbfc',
           width: fullWidth,
           height: fullHeight,
-          pixelRatio: 2, // High DPI for crisp text
+          pixelRatio: 2, // High resolution for crisp readability of all text, code, and symbols
+          skipFonts: true,
+          fontEmbedCSS: '',
+          onImageErrorHandler: () => '',
         });
       } catch (innerErr) {
-        console.warn('First toPng pass failed, retrying with standard params...', innerErr);
+        console.warn('First toPng pass failed, retrying with simple options...', innerErr);
         dataUrl = await toPng(el, {
           backgroundColor: '#fafbfc',
+          skipFonts: true,
+          fontEmbedCSS: '',
+          onImageErrorHandler: () => '',
         });
       }
 
@@ -621,21 +632,32 @@ export const AstraChatbot: React.FC<{
         throw new Error('Screenshot generation produced empty image data.');
       }
 
-      if (mode === 'download') {
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = `sastra-complete-chat-${Date.now()}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        setAttachedImage(dataUrl);
-        if (!input.trim()) {
-          setInput(
-            'Here is the complete screenshot of our full chat conversation. Please review what you explained above, identify any errors, inaccuracies, or mistakes you made, and explain the correct answers:'
-          );
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = `sastra-chat-complete-${timestamp}.png`;
+
+      // Always download the complete chat image to user's computer
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Attempt to copy image to clipboard as well for direct Ctrl+V pasting into chat
+      try {
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        if (navigator.clipboard && (window as any).ClipboardItem) {
+          await navigator.clipboard.write([
+            new (window as any).ClipboardItem({ 'image/png': blob })
+          ]);
         }
+      } catch (clipErr) {
+        // Clipboard writing is optional
       }
+
+      setScreenshotNotice(`📸 Full chat saved to Downloads as "${filename}" and copied to clipboard! You can now share it with your AI pair programmer.`);
+      setTimeout(() => setScreenshotNotice(null), 10000);
     } catch (err: any) {
       console.error('Failed to capture complete chat screenshot:', err);
       alert('Could not capture full chat screenshot: ' + (err?.message || 'Unknown error'));
@@ -734,35 +756,20 @@ export const AstraChatbot: React.FC<{
 
                 {/* Localhost-Only Full Chat Screenshot Tool in Header */}
                 {isLocalhost && (
-                  <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-full text-amber-700 text-xs font-semibold shadow-2xs">
-                    <span className="text-[10px] uppercase tracking-wider text-amber-600 font-bold hidden md:inline">
-                      Localhost:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => captureFullChatScreenshot('attach')}
-                      disabled={isCapturingScreenshot}
-                      className="hover:text-amber-900 flex items-center gap-1 cursor-pointer transition-colors"
-                      title="📸 Capture complete chat history & attach to prompt to tell Sastra mistakes"
-                    >
-                      {isCapturingScreenshot ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
-                      ) : (
-                        <Camera className="w-3.5 h-3.5 text-amber-600" />
-                      )}
-                      <span className="text-[11px]">Full Chat Screenshot</span>
-                    </button>
-                    <span className="text-amber-300">|</span>
-                    <button
-                      type="button"
-                      onClick={() => captureFullChatScreenshot('download')}
-                      disabled={isCapturingScreenshot}
-                      className="hover:text-amber-900 flex items-center cursor-pointer transition-colors p-0.5"
-                      title="Download complete chat conversation as PNG image"
-                    >
-                      <FileDown className="w-3.5 h-3.5 text-amber-600" />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => captureFullChatScreenshot()}
+                    disabled={isCapturingScreenshot}
+                    className="flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-full text-amber-800 text-xs font-semibold shadow-2xs cursor-pointer transition-colors"
+                    title="📸 Download complete chat conversation as PNG image to share with your AI pair programmer"
+                  >
+                    {isCapturingScreenshot ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                    ) : (
+                      <Camera className="w-3.5 h-3.5 text-amber-600" />
+                    )}
+                    <span className="text-[11px] font-semibold">📸 Download Chat Image</span>
+                  </button>
                 )}
 
                 <button
@@ -1104,6 +1111,23 @@ export const AstraChatbot: React.FC<{
                 </div>
               )}
 
+              {/* Screenshot Download Toast Notification */}
+              {screenshotNotice && (
+                <div className="flex items-center justify-between gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3.5 py-2 rounded-xl text-xs font-medium shadow-xs animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{screenshotNotice}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setScreenshotNotice(null)}
+                    className="p-1 text-emerald-600 hover:text-emerald-900 rounded-full hover:bg-emerald-100 cursor-pointer transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Image / Screenshot Preview if attached */}
               {attachedImage && (
                 <div className="relative inline-flex items-center gap-2 bg-indigo-50/90 px-3 py-1.5 rounded-2xl border border-indigo-200/80 max-w-sm shadow-xs">
@@ -1170,10 +1194,10 @@ export const AstraChatbot: React.FC<{
                 {isLocalhost && (
                   <button
                     type="button"
-                    onClick={() => captureFullChatScreenshot('attach')}
+                    onClick={() => captureFullChatScreenshot()}
                     disabled={isCapturingScreenshot}
                     className="p-2 text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 rounded-full transition-all cursor-pointer border border-amber-200/80 shadow-xs flex items-center gap-1 shrink-0"
-                    title="📸 Capture Complete Chat (Localhost Debugger: Takes screenshot of the entire conversation to report mistakes/errors to Sastra)"
+                    title="📸 Download complete conversation image as PNG to share with AI assistant"
                   >
                     {isCapturingScreenshot ? (
                       <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
