@@ -6,21 +6,29 @@ Uses SymPy for rigorous symbolic algebra, calculus, systems of equations, and ar
 
 import re
 import math
-import sympy as sp
-from sympy.parsing.sympy_parser import (
-    parse_expr,
-    standard_transformations,
-    implicit_multiplication_application,
-    convert_xor
-)
-
-TRANSFORMATIONS = standard_transformations + (implicit_multiplication_application, convert_xor)
+try:
+    import sympy as sp
+    from sympy.parsing.sympy_parser import (
+        parse_expr,
+        standard_transformations,
+        implicit_multiplication_application,
+        convert_xor
+    )
+    TRANSFORMATIONS = standard_transformations + (implicit_multiplication_application, convert_xor)
+    HAS_SYMPY = True
+except ImportError:
+    sp = None
+    parse_expr = None
+    TRANSFORMATIONS = None
+    HAS_SYMPY = False
 
 
 def _safe_parse(expr_str: str, local_dict=None):
     """Safely parse a mathematical expression string into a SymPy object,
     supporting implicit multiplication (e.g. '2x' -> '2*x') and caret exponents ('x^2' -> 'x**2').
     """
+    if not HAS_SYMPY:
+        raise RuntimeError("SymPy module is required for symbolic algebraic parsing.")
     clean = expr_str.replace("×", "*").replace("÷", "/")
     # Replace unicode superscripts
     super_map = {"²": "^2", "³": "^3", "⁴": "^4", "⁵": "^5"}
@@ -33,6 +41,13 @@ def solve_mathematical_problem(query: str) -> str:
     """Solve any mathematical problem with step-by-step explanation, formulas,
     prominent solution, and substitution verification proof (LHS = RHS ✓).
     """
+    if not HAS_SYMPY:
+        return (
+            "✦ Mathematical Solver Mode 🧮\n\n"
+            "◈ Notice: Symbolic algebra engine (SymPy) is currently being provisioned in this environment.\n\n"
+            f"Query: {query}\n"
+            "Please ensure `sympy` is installed via `requirements.txt` (`pip install sympy`)."
+        )
     clean_q = query.strip()
     # Strip common conversational prefixes
     q_text = re.sub(

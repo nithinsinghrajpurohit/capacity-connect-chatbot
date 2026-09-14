@@ -8,3 +8,4 @@ werkzeug>=3.0.0
 gunicorn>=21.2.0
 pypdf>=4.0.0
 python-docx>=1.0.0
+sympy>=1.13.0
