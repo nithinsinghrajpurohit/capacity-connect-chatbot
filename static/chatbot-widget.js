@@ -3,7 +3,7 @@
   let open = false, user = null, sid = 'sess_' + Math.random().toString(36).slice(2, 10);
   let mode = null, quizSess = null, msgIdx = 0;
 
-  const MODES = [['learn','Learn'],['deep','Deep'],['socratic','Socratic'],['quiz','Quiz'],['revise','Revise'],['notes','Notes'],['path','Path'],['code','Code'],['math','Math']];
+  const MODES = [['learn','Learn'],['deep','Deep'],['quiz','Quiz'],['revise','Revise'],['notes','Notes'],['path','Path'],['code','Code'],['math','Math']];
 
   function pageCtx() {
     const q = s => document.querySelector(s);

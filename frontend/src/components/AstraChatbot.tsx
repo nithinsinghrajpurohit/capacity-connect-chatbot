@@ -9,7 +9,6 @@ import {
   RotateCcw,
   X,
   BookOpen,
-  HelpCircle,
   Code2,
   Calculator,
   Compass,
@@ -50,10 +49,9 @@ const MODES = [
   { id: 'deep', label: 'Deep Explanation', icon: Sparkles, desc: 'Comprehensive breakdown, table & code' },
   { id: 'image', label: 'Visual & Table', icon: TableIcon, desc: 'Vector Concept Diagrams & Tables' },
   { id: 'notes', label: 'Study Notes & PDF', icon: FileText, desc: 'Complete PDF study & step-by-step notes' },
-  { id: 'socratic', label: 'Socratic', icon: HelpCircle, desc: 'Guiding dialogue' },
   { id: 'quiz', label: 'Quiz', icon: CheckCircle2, desc: 'Quick concept check (simple & direct)' },
   { id: 'code', label: 'Code Debug', icon: Code2, desc: 'Identify errors, explain, fix & show output' },
-  { id: 'math', label: 'Math Solver', icon: Calculator, desc: 'Step-by-step logic' },
+  { id: 'math', label: 'Math Solver', icon: Calculator, desc: 'Step-by-step solving & solution' },
   { id: 'path', label: 'Learning Path', icon: Compass, desc: 'Curriculum roadmap' },
   { id: 'revise', label: 'Flashcards', icon: Layers, desc: 'Active recall' },
 ];
@@ -106,7 +104,7 @@ const renderFormattedInline = (text: string) => {
 };
 
 interface ParsedBlock {
-  type: 'paragraph' | 'heading' | 'bullet' | 'code' | 'table';
+  type: 'paragraph' | 'heading' | 'bullet' | 'code' | 'table' | 'divider' | 'solution' | 'verification' | 'step';
   content?: string;
   lang?: string;
   headers?: string[];
@@ -121,6 +119,43 @@ const parseStructuredContent = (rawText: string): ParsedBlock[] => {
   while (i < lines.length) {
     const rawLine = lines[i];
     const trimmed = rawLine.trim();
+
+    // 0. Horizontal Divider
+    if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
+      blocks.push({ type: 'divider' });
+      i++;
+      continue;
+    }
+
+    // 0.5. Prominent Final Solution
+    if (trimmed.startsWith('🎯 Final Solution:') || trimmed.startsWith('🎯 Solution:') || trimmed.startsWith('Final Solution:')) {
+      blocks.push({
+        type: 'solution',
+        content: trimmed.replace(/^🎯\s*/, ''),
+      });
+      i++;
+      continue;
+    }
+
+    // 0.6. Verification Proof Check
+    if (trimmed.includes('LHS = RHS') || trimmed.includes('Verified Correct!') || trimmed.startsWith('◈ 5. Substitution Proof')) {
+      blocks.push({
+        type: 'verification',
+        content: trimmed,
+      });
+      i++;
+      continue;
+    }
+
+    // 0.7. Math / Process Step Card
+    if (/^(?:•\s*)?(?:✦\s*)?Step\s+\d+[:.]/i.test(trimmed) || trimmed.startsWith('✦ Step ')) {
+      blocks.push({
+        type: 'step',
+        content: trimmed,
+      });
+      i++;
+      continue;
+    }
 
     // 1. Code Block
     if (trimmed.startsWith('```')) {
@@ -141,7 +176,6 @@ const parseStructuredContent = (rawText: string): ParsedBlock[] => {
     }
 
     // 2. Markdown Table Detection
-    // Check if current line has '|' and next line is a separator row like '|---|---|' or '|:---|:---|'
     if (
       trimmed.includes('|') &&
       i + 1 < lines.length &&
@@ -273,12 +307,13 @@ export const AstraChatbot: React.FC<{
       id: 'init-1',
       role: 'assistant',
       content:
-        "Hello! I'm Sastra, your AI Learning Operating System for Capacity Connect.\n\n◈ Multimodal AI Learning Suite:\n❯ 🧠 Learn & Master Any Topic (e.g. Photosynthesis, SQL vs NoSQL, Machine Learning)\n❯ 📄 Instant PDF Study Guide Generator (Click the PDF icon on any answer to download)\n❯ 🎨 AI Diagrams & Visual Concepts (Generate rich vector and generative educational diagrams)\n❯ 👁️ Vision & Multimodal Reasoning (Upload images or diagrams for instant breakdown)\n❯ 📎 Document Analyzer (Upload PDF, Word DOCX, TXT notes for comprehensive analysis)\n❯ 🧪 Interactive Quizzes & Step-by-Step Code/Math Solutions\n\nYou're currently enrolled in: Python for Data Science, Web Development with React.\n\nHow can I help you today? I can teach a concept, quiz your knowledge, or generate study notes!",
+        "Hello! I'm Sastra, your AI Learning Operating System for Capacity Connect.\n\n👉 **To begin chatting, please first select a learning mode from the top toolbar:**\n\n• **Math Solver** 🧮: Step-by-step mathematical solving, formulas & verification proof\n• **Learning Path** 🧭: 5-Phase step-by-step curriculum roadmaps for any topic\n• **Flashcards** 🎴: Interactive click-to-flip active recall revision cards\n• **Visual & Table** 📊: High-definition diagrams & structured clinical dataset tables\n• **Learn** 📖: Concise definitions & practical examples\n• **Deep Explanation** ✨: Comprehensive pedagogical masterclasses\n• **Quiz** 🎯: Interactive concept checks & assessments\n• **Study Notes & PDF** 📄: Step-by-step notes & official printable PDF guides\n• **Code Debug** 💻: Error identification, explanations, fixes & test output\n\nClick any mode button above or a starter chip below to activate your session!",
       suggestions: [
-        'Explain Photosynthesis simply 🌿',
-        'Generate PDF study guide on Python 📄',
-        'Draw an AI diagram of Neural Networks 🎨',
-        'Quiz me on Machine Learning 🎯',
+        'Math Solver 🧮',
+        'Learning Path 🧭',
+        'Flashcards 🎴',
+        'Visual & Table 📊',
+        'Learn 📖',
       ],
       timestamp: 'Just now',
     },
@@ -294,6 +329,50 @@ export const AstraChatbot: React.FC<{
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [sessionId] = useState<string>(() => `sess-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`);
+  const [flippedCards, setFlippedCards] = useState<Record<string, boolean>>({});
+
+  const toggleFlipCard = (cardKey: string) => {
+    setFlippedCards((prev) => ({ ...prev, [cardKey]: !prev[cardKey] }));
+  };
+
+  const handleModeSelect = (modeId: string) => {
+    const isDeselect = activeMode === modeId;
+    const newMode = isDeselect ? null : modeId;
+    setActiveMode(newMode);
+
+    if (newMode) {
+      const modeObj = MODES.find((m) => m.id === newMode);
+      let modeSuggestions: string[] = [];
+      if (newMode === 'math') {
+        modeSuggestions = ['Solve 2x + 5 = 15 🧮', 'Solve 2x^2 + 5x - 3 = 0', 'Derivative of x^3 + 4x', 'Pythagorean theorem a=3, b=4'];
+      } else if (newMode === 'path') {
+        modeSuggestions = ['Python Programming Roadmap 🧭', 'Full-Stack Web Dev Path', 'Machine Learning & AI', 'Cloud & DevOps'];
+      } else if (newMode === 'revise') {
+        modeSuggestions = ['React Flashcards 🎴', 'Python Flashcards', 'Docker & Kubernetes', 'Data Structures'];
+      } else if (newMode === 'image') {
+        modeSuggestions = ['give me patient data set 📊', 'Photosynthesis visual & table 🌿', 'Neural Network Architecture 🧠', 'Operating System Kernel 💻'];
+      } else if (newMode === 'learn') {
+        modeSuggestions = ['What are Python Variables? 🌿', 'What is Virtual DOM?', 'What is Docker Container?', 'What is Gradient Descent?'];
+      } else if (newMode === 'deep') {
+        modeSuggestions = ['Deep Dive Photosynthesis 🌿', 'Deep Dive Kubernetes', 'Deep Dive Transformers & LLMs', 'Deep Dive Database Indexing'];
+      } else if (newMode === 'quiz') {
+        modeSuggestions = ['Quiz on Python 🎯', 'Quiz on Web Development', 'Quiz on Cloud Computing', 'Quiz on Data Structures'];
+      } else if (newMode === 'notes') {
+        modeSuggestions = ['Notes on Machine Learning 📄', 'Notes on React Hooks', 'Notes on Linux Networking', 'Download PDF Guide'];
+      } else if (newMode === 'code') {
+        modeSuggestions = ['Debug list mutation in loop 💻', 'Fix NoneType error in function', 'Optimize quadratic time O(N²)', 'Explain Python decorators'];
+      }
+
+      const activationMsg: Message = {
+        id: `act-${Date.now()}`,
+        role: 'assistant',
+        content: `🎯 **${modeObj?.label || newMode} Mode Activated!**\n\n${modeObj?.desc || ''}\n\nType your question below or pick one of the starter prompts to begin:`,
+        suggestions: modeSuggestions,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, activationMsg]);
+    }
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -525,6 +604,29 @@ export const AstraChatbot: React.FC<{
   const handleSend = async (customText?: string) => {
     const textToSend = customText || input.trim();
     if ((!textToSend && !attachedImage && !attachedDoc) || loading) return;
+
+    // Strict Mode-First Enforcement: User must select a learning mode first
+    if (!activeMode) {
+      if (!customText) setInput('');
+      const userMsg: Message = {
+        id: `usr-${Date.now()}`,
+        role: 'user',
+        content: textToSend || (attachedDoc ? `📄 ${attachedDoc.name}` : '📷 Visual'),
+        image: attachedImage || undefined,
+        docName: attachedDoc?.name,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      const modeNoticeMsg: Message = {
+        id: `sys-${Date.now()}`,
+        role: 'assistant',
+        content:
+          '⚠️ **Please select a learning mode first!**\n\nTo chat with Sastra AI, please select one of the specialized learning modes from the top toolbar first:\n\n• **Math Solver** 🧮: Step-by-step mathematical problem solving & verification\n• **Learning Path** 🧭: 5-Phase learning roadmap for any topic\n• **Flashcards** 🎴: Active recall revision cards\n• **Visual & Table** 📊: Concept diagrams & structured dataset tables\n• **Learn** 📖: Bite-sized definitions & quick examples\n• **Deep Explanation** ✨: Comprehensive masterclasses\n• **Quiz** 🎯: Interactive concept checks\n• **Study Notes & PDF** 📄: Exhaustive study guides\n• **Code Debug** 💻: Error identification & bug fixing\n\n👉 *Click any mode button above or a suggestion chip below to activate it and chat!*',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        suggestions: ['Math Solver 🧮', 'Learning Path 🧭', 'Flashcards 🎴', 'Visual & Table 📊', 'Learn 📖'],
+      };
+      setMessages((prev) => [...prev, userMsg, modeNoticeMsg]);
+      return;
+    }
 
     const userMsg: Message = {
       id: `usr-${Date.now()}`,
@@ -931,6 +1033,18 @@ export const AstraChatbot: React.FC<{
               </div>
             </header>
 
+            {/* Mode-First Requirement Banner */}
+            {!activeMode && (
+              <div className="px-6 py-2 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-blue-500/10 border-b border-amber-200/80 flex items-center justify-between gap-2 text-xs font-semibold text-amber-900 animate-pulse">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-amber-700 font-bold">👉 Step 1:</span> Please select a learning mode below first to chat with Sastra AI
+                </span>
+                <span className="text-[10px] bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-300 font-bold">
+                  Mode Required
+                </span>
+              </div>
+            )}
+
             {/* Mode Selector Pill Bar */}
             <div className="px-6 py-2.5 bg-slate-50/70 border-b border-slate-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mr-1 shrink-0">
@@ -942,7 +1056,7 @@ export const AstraChatbot: React.FC<{
                 return (
                   <button
                     key={m.id}
-                    onClick={() => setActiveMode(isSelected ? null : m.id)}
+                    onClick={() => handleModeSelect(m.id)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all shrink-0 cursor-pointer ${
                       isSelected
                         ? 'bg-[#0a152d] text-white shadow-sm ring-1 ring-white/20'
@@ -1163,6 +1277,49 @@ export const AstraChatbot: React.FC<{
                             );
                           }
 
+                          if (block.type === 'divider') {
+                            return <hr key={bIdx} className="my-3.5 border-slate-200/80" />;
+                          }
+
+                          if (block.type === 'solution') {
+                            return (
+                              <div
+                                key={bIdx}
+                                className="my-3.5 p-4 rounded-xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-blue-500/10 border-2 border-emerald-500/50 shadow-sm"
+                              >
+                                <div className="flex items-center gap-2 text-emerald-900 font-bold text-[14px]">
+                                  <span className="text-lg">🎯</span>
+                                  <span>{renderFormattedInline(block.content || '')}</span>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (block.type === 'verification') {
+                            return (
+                              <div
+                                key={bIdx}
+                                className="my-2.5 p-3 rounded-xl bg-emerald-50/90 border border-emerald-300/80 flex items-center gap-2.5 text-xs font-semibold text-emerald-800 shadow-xs"
+                              >
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span>{renderFormattedInline(block.content || '')}</span>
+                              </div>
+                            );
+                          }
+
+                          if (block.type === 'step') {
+                            return (
+                              <div
+                                key={bIdx}
+                                className="my-2 p-3 rounded-xl bg-blue-50/60 border border-blue-200/70 hover:border-blue-300 transition-colors shadow-xs"
+                              >
+                                <div className="text-xs font-semibold text-blue-950 leading-relaxed">
+                                  {renderFormattedInline(block.content || '')}
+                                </div>
+                              </div>
+                            );
+                          }
+
                           if (!block.content) {
                             return <div key={bIdx} className="h-1" />;
                           }
@@ -1175,22 +1332,85 @@ export const AstraChatbot: React.FC<{
                         })}
                       </div>
 
-                      {/* Flashcards interactive preview if present */}
+                      {/* Interactive Active-Recall Flashcards */}
                       {msg.cards && msg.cards.length > 0 && (
-                        <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
-                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            Interactive Active-Recall Flashcards:
-                          </p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {msg.cards.slice(0, 4).map((c, cIdx) => (
-                              <div
-                                key={cIdx}
-                                className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700 hover:bg-blue-50/50 hover:border-blue-200 transition-colors"
-                              >
-                                <p className="font-semibold text-slate-900 mb-1">❓ {c.front}</p>
-                                <p className="text-slate-600">💡 {c.back}</p>
-                              </div>
-                            ))}
+                        <div className="mt-4 pt-3 border-t border-slate-100 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
+                              <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                              Interactive Active-Recall Flashcards ({msg.cards.length} Cards):
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const allFlipped = msg.cards!.every((_, cIdx) => flippedCards[`${msg.id}-${cIdx}`]);
+                                setFlippedCards((prev) => {
+                                  const next = { ...prev };
+                                  msg.cards!.forEach((_, cIdx) => {
+                                    next[`${msg.id}-${cIdx}`] = !allFlipped;
+                                  });
+                                  return next;
+                                });
+                              }}
+                              className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-full transition-colors cursor-pointer"
+                            >
+                              {msg.cards.every((_, cIdx) => flippedCards[`${msg.id}-${cIdx}`]) ? 'Hide All Answers 🙈' : 'Reveal All Answers 💡'}
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {msg.cards.map((c, cIdx) => {
+                              const cardKey = `${msg.id}-${cIdx}`;
+                              const isFlipped = !!flippedCards[cardKey];
+                              return (
+                                <div
+                                  key={cIdx}
+                                  onClick={() => toggleFlipCard(cardKey)}
+                                  className={`p-3.5 rounded-xl border transition-all cursor-pointer select-none min-h-[110px] flex flex-col justify-between shadow-xs ${
+                                    isFlipped
+                                      ? 'bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white border-emerald-300 ring-1 ring-emerald-400/30'
+                                      : 'bg-white hover:bg-indigo-50/40 border-slate-200/90 hover:border-indigo-300 hover:shadow-sm'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span
+                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                          isFlipped
+                                            ? 'bg-emerald-100 text-emerald-800'
+                                            : 'bg-indigo-100 text-indigo-800'
+                                        }`}
+                                      >
+                                        {isFlipped ? '💡 Answer (Back)' : `🎴 Card ${cIdx + 1} (Front)`}
+                                      </span>
+                                      <span className="text-[11px] text-slate-400 font-medium">
+                                        {isFlipped ? '🔄 Click to flip' : '👆 Click to reveal'}
+                                      </span>
+                                    </div>
+                                    <p
+                                      className={`text-xs leading-relaxed ${
+                                        isFlipped
+                                          ? 'text-emerald-950 font-medium'
+                                          : 'text-slate-900 font-semibold'
+                                      }`}
+                                    >
+                                      {isFlipped ? c.back : c.front}
+                                    </p>
+                                  </div>
+                                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                                    <span
+                                      className={`font-medium ${
+                                        isFlipped ? 'text-emerald-700' : 'text-indigo-600'
+                                      }`}
+                                    >
+                                      {isFlipped ? '✓ Recalled' : '❓ Test Recall'}
+                                    </span>
+                                    <span className="text-slate-400 hover:text-slate-600">
+                                      {isFlipped ? 'Turn over ↩' : 'Show answer ➔'}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -1261,6 +1481,17 @@ export const AstraChatbot: React.FC<{
                                 if (isPdfChip && msg.content) {
                                   handleDownloadPdf(msg.content, 'Sastra Study Guide', msg.id);
                                 } else {
+                                  const matchMode = MODES.find((m) =>
+                                    sug.toLowerCase().includes(m.label.toLowerCase()) ||
+                                    (m.id === 'revise' && sug.toLowerCase().includes('flashcard')) ||
+                                    (m.id === 'math' && sug.toLowerCase().includes('math')) ||
+                                    (m.id === 'path' && sug.toLowerCase().includes('path')) ||
+                                    (m.id === 'image' && (sug.toLowerCase().includes('visual') || sug.toLowerCase().includes('diagram')))
+                                  );
+                                  if (matchMode && !activeMode) {
+                                    handleModeSelect(matchMode.id);
+                                    return;
+                                  }
                                   handleSend(sug);
                                 }
                               }}
@@ -1458,21 +1689,27 @@ export const AstraChatbot: React.FC<{
                       ? `Study complete PDF & explain every topic step-by-step: ${attachedDoc.name}...`
                       : attachedImage
                       ? 'Ask a question or explain this image / diagram...'
+                      : !activeMode
+                      ? '⚠️ Step 1: Please select a learning mode above first to chat with Sastra AI...'
+                      : activeMode === 'math'
+                      ? 'Enter any math question or equation for step-by-step solution (e.g. "Solve 2x + 5 = 15")...'
+                      : activeMode === 'path'
+                      ? 'Enter any topic for a 5-phase step-by-step learning path (e.g. "React", "Kubernetes", "Python")...'
+                      : activeMode === 'revise'
+                      ? 'Enter any topic for active recall flashcards (e.g. "React", "Python", "Docker")...'
+                      : activeMode === 'image'
+                      ? 'Prompt a vector diagram or table (e.g. "give me patient data set", "Photosynthesis diagram")...'
                       : activeMode === 'learn'
                       ? 'Enter a topic for quick definition & example (e.g. "Photosynthesis", "Variables")...'
                       : activeMode === 'deep'
                       ? 'Enter a topic for deep explanation with tables & simulation (e.g. "Photosynthesis", "Docker")...'
-                      : activeMode === 'image'
-                      ? 'Prompt a diagram to draw (e.g. "Draw a diagram of Photosynthesis")...'
                       : activeMode === 'quiz'
                       ? 'Enter a topic for a quick quiz (e.g. "Cloud Computing", "Python")...'
                       : activeMode === 'notes'
                       ? 'Upload PDF or enter topic for complete step-by-step study notes & PDF export...'
                       : activeMode === 'code'
                       ? 'Paste code or describe an error to identify bugs, explain, fix & show output...'
-                      : activeMode
-                      ? `Ask Sastra (${activeMode} mode)...`
-                      : 'Ask anything, generate PDF guides, upload documents, or test knowledge...'
+                      : `Ask Sastra (${activeMode} mode)...`
                   }
                   className="flex-1 bg-transparent border-none outline-none text-[14px] text-slate-800 px-3 placeholder:text-slate-400"
                 />

@@ -234,7 +234,15 @@ class GeminiAdapter(LLMAdapter):
                 return self.fallback_adapter.generate(system_prompt, user_message, history, image_data, audio_data)
             return None
         
-        if "LEARN MODE GUIDELINES" in system_prompt or "QUIZ MODE GUIDELINES" in system_prompt:
+        if any(g in system_prompt for g in [
+            "LEARN MODE GUIDELINES",
+            "QUIZ MODE GUIDELINES",
+            "STEP-BY-STEP MATHEMATICAL SOLVER GUIDELINES",
+            "STEP-BY-STEP LEARNING PATH & ROADMAP GUIDELINES",
+            "ACTIVE RECALL FLASHCARDS & REVISION GUIDELINES",
+            "CODE DEBUGGING, EXPLANATION & SOFTWARE FIXING GUIDELINES",
+            "STUDY NOTES & COMPLETE PDF STUDY MODE GUIDELINES"
+        ]):
             sys_inst = system_prompt
         else:
             sys_inst = (

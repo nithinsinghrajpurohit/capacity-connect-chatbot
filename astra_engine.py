@@ -329,8 +329,8 @@ BEGINNER_KEYWORDS = ["beginner", "basics", "simple", "easy", "introduction", "st
 def get_user_context(user_id=None, custom_name=None):
     conn = get_db()
     user = None
-    if user_id and int(user_id) > 0:
-        user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    if user_id and str(user_id).isdigit() and int(user_id) > 0:
+        user = conn.execute("SELECT * FROM users WHERE id=?", (int(user_id),)).fetchone()
 
     # If not found by user_id but custom_name provided, search by username or full_name
     if not user and custom_name:

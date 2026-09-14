@@ -1,5 +1,5 @@
 """Astra FULL brain — GOD MODE layer on top of astra_engine knowledge base.
-Adds: deep explanations, Socratic tutoring, code/debug mode, math mode,
+Adds: deep explanations, code/debug mode, math mode,
 learning paths, flashcards, note synthesis, visual diagrams,
 misconception repair, mastery checks, page-aware context, suggestions.
 Now with pluggable LLM support (Gemini/OpenAI/Ollama with rule-based fallback).
@@ -19,7 +19,11 @@ try:
 except ImportError:
     _llm = None
     _llm_available = False
-MODES = ["learn", "deep", "socratic", "quiz", "revise", "notes", "path", "code", "math", "project", "research", "image"]
+
+from math_solver import solve_mathematical_problem
+from path_solver import generate_learning_path
+
+MODES = ["learn", "deep", "quiz", "revise", "notes", "path", "code", "math", "project", "research", "image"]
 DEEP_TRIGGERS = [
     "deep explanation", "deep dive", "in depth", "explain in depth", "explain deeply",
     "comprehensive explanation", "deep dive into", "deeply explain", "detailed explanation",
@@ -33,8 +37,6 @@ IMAGE_TRIGGERS = [
     "draw diagram", "show diagram", "diagram", "draw"
 ]
 QUIZ_TRIGGERS = ["quiz me", "quiz", "take a quiz", "test my knowledge", "test me", "practice questions", "mcq", "knowledge check", "assessment", "question on", "ask a question"]
-SOCRATIC_TRIGGERS = ["quiz me step by step", "ask me guiding", "socratic", "don't tell me the answer",
-                     "let me figure", "guide me", "hint"]
 CODE_TRIGGERS = [
     "debug", "error", "traceback", "fix my code", "what's wrong with", "code review",
     "fix error", "fix the bug", "code debug", "debug code", "identifying errors", "explain the code", "fixing errors", "show output"
@@ -46,7 +48,11 @@ PATH_TRIGGERS = [
 ]
 PDF_TRIGGERS = ["pdf", "study guide", "cheat sheet", "handout", "printable", "download notes"]
 FLASH_TRIGGERS = ["flashcard", "flash card", "flashcards", "quick revision", "revise", "spaced repetition", "recall", "review cards"]
-MATH_TRIGGERS = ["solve equation", "calculate", "derivative", "integral", "matrix", "linear algebra", "calculus", "probability", "statistics", "math problem"]
+MATH_TRIGGERS = [
+    "solve equation", "solve ", "equation", "calculate", "derivative", "integral", "matrix",
+    "linear algebra", "calculus", "probability", "statistics", "math problem", "quadratic",
+    "pythagor", "d/dx", "dx", "find x", "evaluate", "simplify"
+]
 PROJECT_TRIGGERS = ["build a project", "project idea", "capstone", "portfolio project", "mini project"]
 RESEARCH_TRIGGERS = ["research", "compare", "pros and cons", "literature", "survey of", "state of the art"]
 
@@ -66,8 +72,6 @@ def detect_mode(message, explicit_mode=None):
         return "revise"
     if any(t in m for t in PATH_TRIGGERS):
         return "path"
-    if any(t in m for t in SOCRATIC_TRIGGERS):
-        return "socratic"
     if any(t in m for t in CODE_TRIGGERS):
         return "code"
     if any(t in m for t in MATH_TRIGGERS):
@@ -341,56 +345,8 @@ def dynamic_deep_explain(topic_title):
         f"• Error Safety: Robust boundary checks prevent null references, leaks, and runtime state corruption.\n\n"
         f"💡 Senior Tip: When applying {clean_title} in production systems, prioritize defensive validation, isolated scope, and clean error handling."
     )
-def socratic_turn(topic_key, subtopic_key, history):
-    topic_data = base.TOPIC_KNOWLEDGE.get(topic_key)
-    if not topic_data:
-        return None
-    sub = topic_data["topics"].get(subtopic_key) or list(topic_data["topics"].values())[0]
-    user_turns = [h for h in (history or []) if h.get("role") == "user"]
-    step = min(len(user_turns), 3)
-    if step <= 1:
-        return (f"✦ Socratic Discovery — {sub['title']}\n\n"
-                f"Let's figure out {sub['title']} together — I won't just give the answer.\n\n"
-                f"◈ Guiding Question 1: In your own words, what do you think happens when this executes?\n{sub['example']}\n\n"
-                "Take a guess — even a rough one! Then I will give you a clue for the next step.")
-    if step == 2:
-        return (f"✦ Socratic Discovery — Step 2\n\n"
-                f"Good — you are one step closer to mastering {sub['title']}.\n\n"
-                f"◈ Clue: {sub['intuition']}\n\n"
-                f"◈ Guiding Question 2: What would change if the input values or data types were completely different? "
-                "Reply with your reasoning and I will narrow it down further.")
-    return (f"✦ Socratic Discovery — Synthesis\n\n"
-            f"Almost there! Here is the core operational principle behind {sub['title']}:\n{sub['what']}\n\n"
-            f"🎯 Now verify your mastery: {sub['practice']}\n\nState your answer and I will confirm or repair any subtle misconception!")
-def dynamic_socratic(topic_title, history):
-    clean_title = topic_title.strip().rstrip("?").replace("guide me through", "").replace("teach me", "").strip().title() or "Concept"
-    user_turns = [h for h in (history or []) if h.get("role") == "user"]
-    step = min(len(user_turns), 3)
-    if step <= 1:
-        return (
-            f"✦ Socratic Discovery — {clean_title}\n\n"
-            f"Let's reason through {clean_title} together from first principles — I won't just hand you the answer.\n\n"
-            f"◈ Guiding Question 1:\n"
-            f"Imagine you need to store and manipulate state that changes over time during a program's execution. "
-            f"What fundamental problems arise if data cannot be isolated or named reliably?\n\n"
-            f"Take a guess — even a rough one! Reply with your thoughts and I will give you the next clue."
-        )
-    if step == 2:
-        return (
-            f"✦ Socratic Discovery — Step 2\n\n"
-            f"You're making great progress towards understanding {clean_title}.\n\n"
-            f"◈ Clue:\n"
-            f"Think of how an index card or whiteboard works versus carving words permanently into stone.\n\n"
-            f"◈ Guiding Question 2:\n"
-            f"If multiple parts of your program need to read this same state, how should we reference it so that everyone agrees on the current value?\n\n"
-            f"Reply with your reasoning!"
-        )
-    return (
-        f"✦ Socratic Discovery — Synthesis\n\n"
-        f"Excellent thinking! Here is how it connects to {clean_title}:\n"
-        f"By establishing clear symbolic references with well-defined scope and lifetime, your program safely mutates state without unpredictable side effects.\n\n"
-        f"🎯 Verification Challenge: How would you apply this in a real project? Try answering in one sentence!"
-    )
+
+
 
 
 def code_mode(message):
@@ -620,194 +576,29 @@ def code_mode(message):
             "numbers = [1, 2, 3, 4, 5, 6]\n"
             "for num in numbers:\n"
             "    if num % 2 == 0:\n"
-            "        numbers.remove(num)  # Skips elements!\n\n"
-            "print('Remaining:', numbers)  # Output: [1, 3, 5, 6] - 6 was missed!\n"
+            "        numbers.remove(num)  # Modifying list during iteration\n"
             "```\n\n"
-            "---\n\n"
-            "◈ 1. Identifying Errors (Defect & Vulnerability Analysis):\n"
-            "• 🐞 Defect: In-place mutation of a collection's length during active `for` loop traversal.\n"
-            "• 💥 Silent Logical Failure: The program does not crash, but produces silent data corruption: the element `6` was never checked because the internal iterator index advanced past it.\n"
-            "• ⚠️ Severe Inefficiency: `numbers.remove(num)` takes O(N) time inside an O(N) loop, causing an overall quadratic time complexity O(N²).\n\n"
-            "---\n\n"
-            "◈ 2. Explaining the Code & Failure Mechanics:\n"
-            "• 🔍 Original Intent: The developer intended to remove all even numbers from a list.\n"
-            "• ⚙️ Why It Fails: When index 1 (value 2) is deleted, all subsequent items shift one slot to the left. The next item (value 3) shifts into index 1. The iterator then moves to index 2 (which now holds value 4), skipping index 1 entirely.\n"
-            "• 💡 Operational Impact: In critical data pipelines or filtering services, skipping elements leads to corrupt data sets, incorrect financial tallies, and critical security filter bypasses.\n\n"
-            "---\n\n"
-            "◈ 3. Fixing Errors in Software (Correct & Efficient Implementation):\n"
-            "```python\n"
-            "# Highly efficient, idiomatic linear filtering (O(N))\n"
-            "def filter_odd_numbers(values: list[int]) -> list[int]:\n"
-            "    \"\"\"Filters list in linear O(N) time without iterator mutation bugs.\"\"\"\n"
-            "    return [x for x in values if x % 2 != 0]\n\n"
-            "# Production test run\n"
-            "raw_numbers = [1, 2, 3, 4, 5, 6, 8, 10]\n"
-            "clean_numbers = filter_odd_numbers(raw_numbers)\n"
-            "print('Input List: ', raw_numbers)\n"
-            "print('Filtered List:', clean_numbers)\n"
-            "```\n\n"
-            "• 🛠️ What Was Fixed:\n"
-            "  - Replaced mutating loop with idiomatic list comprehension.\n"
-            "  - Reduced algorithmic time complexity from quadratic O(N²) down to optimal linear O(N).\n"
-            "  - Guaranteed 100% correct filtering with no skipped elements.\n\n"
-            "---\n\n"
-            "◈ 4. Verified Execution Output & Test Demonstration:\n"
-            "```text\n"
-            ">>> [Executing filter_odd_numbers([1, 2, 3, 4, 5, 6, 8, 10])]\n"
-            "Output:\n"
-            "Input List:  [1, 2, 3, 4, 5, 6, 8, 10]\n"
-            "Filtered List: [1, 3, 5]\n"
-            "Status: PASSED ✓\n\n"
-            "Time Complexity: O(N) [Optimal linear scan]\n"
-            "Space Complexity: O(N)\n"
-            "Operation: 100% Verified & High-Performance\n"
-            "```"
-        )
-    if tk:
-        topic_data = base.TOPIC_KNOWLEDGE[tk]
-        sub = topic_data["topics"].get(sk) or list(topic_data["topics"].values())[0]
-        return (
-            f"✦ {sub['title']} — Code Execution, Debugging & Optimization\n\n"
-            f"◈ 1. Identifying Errors:\n"
-            f"Common pitfalls in {sub['title']} include unvalidated input boundaries, syntax errors, and unhandled edge conditions.\n\n"
-            f"---\n\n"
-            f"◈ 2. Explaining the Code & Core Concept:\n"
-            f"{sub['what']}\n\n"
-            f"---\n\n"
-            f"◈ 3. Fixing Errors in Software (Correct & Efficient Implementation):\n"
-            f"```python\n"
-            f"{sub['example']}\n"
-            f"```\n\n"
-            f"---\n\n"
-            f"◈ 4. Verified Execution Output & Test Demonstration:\n"
-            f"```text\n"
-            f">>> Execution Verified for {sub['title']}\n"
-            f"Status: ALL TESTS PASSED ✓\n"
-            f"Practice Challenge: {sub['practice']}\n"
-            f"```"
+            "◈ Identifying Errors & Root Cause:\n"
+            "Mutating a list during iteration causes indices to shift, silently skipping elements.\n\n"
+            "◈ Fixing Errors in Software:\n"
+            "Use list comprehension: `numbers = [x for x in numbers if x % 2 != 0]`.\n"
         )
     return (
         "✦ Code Debugging & Software Optimization Mode\n\n"
         "◈ 1. Identifying Errors (Defect & Vulnerability Analysis):\n"
-        "Paste any code snippet or error message in triple backticks. Sastra will systematically inspect syntax, runtime exceptions, logical defects, off-by-one errors, and performance bottlenecks.\n\n"
-        "---\n\n"
+        "Paste any code snippet in triple backticks. Sastra will systematically inspect syntax, runtime exceptions, and logic bugs.\n\n"
         "◈ 2. Explaining the Code & Failure Mechanics:\n"
-        "Sastra provides a clear, plain-English breakdown of how the code operates, where it fails, and the underlying root cause.\n\n"
-        "---\n\n"
-        "◈ 3. Fixing Errors in Software (Correct & Efficient Operation):\n"
-        "Receive clean, production-ready corrected code with optimal algorithmic complexity, defensive typing, and step-by-step change documentation.\n\n"
-        "---\n\n"
-        "◈ 4. Verified Execution Output & Test Demonstration:\n"
-        "View exact terminal execution outputs, test cases, and time/space complexity guarantees.\n\n"
+        "Clear breakdown of how the code operates and the underlying root cause.\n\n"
+        "◈ 3. Fixing Errors in Software:\n"
+        "Receive clean, optimized code with step-by-step explanations.\n\n"
+        "◈ 4. Verified Execution Output:\n"
+        "Terminal test cases and complexity guarantees.\n"
         "💡 Ready to debug? Paste your code snippet or error message below!"
     )
 
-
 def math_mode(message):
-    m = message.lower()
-    tk, sk = base.find_best_topic(message)
+    return solve_mathematical_problem(message)
 
-    if tk == "artificial_intelligence":
-        return (
-            "✦ Mathematical Foundations of Artificial Intelligence\n\n"
-            "◈ 1. Core Mathematical Pillars of AI:\n"
-            "• Linear Algebra: High-dimensional vector spaces and tensor mappings: X ∈ ℝ^(n Ã d)\n"
-            "• Multivariable Calculus: Gradient descent and loss minimization: Î¸ ← Î¸ - Î± ∇L(Î¸)\n"
-            "• Probability & Statistics: Bayes' Theorem P(A|B) = P(B|A)P(A)/P(B), maximum likelihood, and entropy\n\n"
-            "◈ 2. The Universal AI Objective Function:\n"
-            "```text\n"
-            "min_Î¸  (1/N) ∑ Loss(f_Î¸(x_i), y_i) + Î» Â· R(Î¸)\n"
-            "```\n"
-            "• f_Î¸(x): The model parameterized by weights Î¸\n"
-            "• Loss(...): Measures divergence between prediction and ground-truth label\n"
-            "• Î» Â· R(Î¸): Regularization penalizing excess model complexity\n\n"
-            "◈ 3. Scaled Dot-Product Attention (Modern LLMs & Transformers):\n"
-            "```text\n"
-            "Attention(Q, K, V) = softmax( (Q Â· Káµ) / √d_k ) Â· V\n"
-            "```\n\n"
-            "💡 Practice: Ask for any AI derivation (e.g. 'explain gradient descent step' or 'calculate Bayes probability')!"
-        )
-    if tk == "python" and sk == "functions":
-        return (
-            "✦ Mathematical Formulation of Functions\n\n"
-            "◈ 1. Formal Definition:\n"
-            "In mathematics, a function f is a binary relation between two sets X (Domain) and Y (Codomain) such that each element x ∈ X is mapped to exactly one unique element y ∈ Y:\n"
-            "```text\n"
-            "f: X ──▶ Y\n"
-            "y = f(x)\n"
-            "```\n\n"
-            "◈ 2. Computational Mapping:\n"
-            "• Input Arguments: Elements from Domain X.\n"
-            "• Function Definition: The deterministic mapping rule f.\n"
-            "• Return Value: The computed image f(x) ∈ Y.\n\n"
-            "◈ 3. Step-by-Step Example (Polynomial Function):\n"
-            "Let f(x) = 2xÂ² + 3x - 5. Evaluate for x = 4:\n"
-            "• Step 1: Substitution ──▶ f(4) = 2(4)Â² + 3(4) - 5\n"
-            "• Step 2: Exponentiation ──▶ f(4) = 2(16) + 12 - 5\n"
-            "• Step 3: Multiplication ──▶ f(4) = 32 + 12 - 5\n"
-            "• Step 4: Final Addition ──▶ f(4) = 39\n\n"
-            "💡 Practice: Calculate f(2) for f(x) = xÂ³ - 4x."
-        )
-    if tk == "python" and sk == "variables":
-        return (
-            "✦ Mathematical Foundations of Variables\n\n"
-            "◈ 1. Mathematical vs Programming Variables:\n"
-            "• In Algebra: A variable (e.g. x) represents an unknown value in an equation (e.g. 2x + 4 = 10 ──▶ x = 3). It represents a fixed truth value.\n"
-            "• In Programming: A variable is a named storage address holding a mutable state (e.g. x = x + 1 is mathematically impossible, but algorithmically updates the stored register value).\n\n"
-            "◈ 2. Worked Equation Example:\n"
-            "Solve for variable x: 3x - 7 = 14\n"
-            "• Step 1: Add 7 to both sides ──▶ 3x = 21\n"
-            "• Step 2: Divide both sides by 3 ──▶ x = 7\n"
-            "• Verification: 3(7) - 7 = 21 - 7 = 14 ✓\n\n"
-            "💡 Practice: Tell me an equation (e.g. 'solve 5x + 10 = 35') and I will solve it step-by-step!"
-        )
-    if (tk == "machine_learning" and sk == "regression") or "regression" in m or "y =" in m or "y=" in m:
-        nums = re.findall(r"-?\d+\.?\d*", message)
-        slope, xval, icept = 2.0, 5.0, 3.0
-        if len(nums) >= 3:
-            try:
-                slope, xval, icept = float(nums[0]), float(nums[1]), float(nums[2])
-            except Exception:
-                pass
-        calc = slope * xval + icept
-        return (
-            "✦ Linear Regression Mathematical Solver\n\n"
-            "◈ 1. Governing Equation:\n"
-            "```text\n"
-            "y = m Â· x + b\n"
-            "```\n"
-            f"• m (Slope / Weight): {slope}\n"
-            f"• x (Input Feature): {xval}\n"
-            f"• b (Intercept / Bias): {icept}\n\n"
-            f"◈ 2. Step-by-Step Substitution:\n"
-            f"• Step 1: Multiply slope by feature ──▶ {slope} Ã {xval} = {slope * xval}\n"
-            f"• Step 2: Add bias intercept ──▶ {slope * xval} + {icept} = {calc}\n\n"
-            f"◈ 3. Predicted Output: y = {calc}\n\n"
-            "💡 Send any equation with numbers (e.g. 'y = 4 * 12 + 7') to calculate instantly!"
-        )
-    nums = re.findall(r"-?\d+\.?\d*", message)
-    if len(nums) >= 2:
-        try:
-            n1, n2 = float(nums[0]), float(nums[1])
-            return (
-                f"✦ Mathematical Step-by-Step Solver\n\n"
-                f"◈ Given Values: a = {n1}, b = {n2}\n"
-                f"• Sum (a + b) = {n1 + n2}\n"
-                f"• Difference (a - b) = {n1 - n2}\n"
-                f"• Product (a Ã b) = {n1 * n2}\n"
-                f"• Quotient (a / b) = {n1 / n2 if n2 != 0 else 'Undefined (ZeroDivision)'}\n\n"
-                f"💡 State your formula (e.g. 'solve 2x + 6 = 18') for full step-by-step derivations!"
-            )
-        except Exception:
-            pass
-    return (
-        "✦ Mathematical Solver Mode\n\n"
-        "◈ How to use:\n"
-        "1. Tell me an algebraic equation (e.g. 'Solve 4x + 12 = 36')\n"
-        "2. Provide Linear Regression parameters (e.g. 'y = 2.5 * 10 + 4')\n"
-        "3. Ask for mathematical derivations (e.g. 'Derivative of x^3' or 'Probability formulas')\n\n"
-        "I will break down every single algebraic step with zero skipped operations!"
-    )
 def project_mode(message, context):
     m = message.lower()
     skills = []
@@ -823,6 +614,7 @@ def project_mode(message, context):
     return ("✦ Project Architecture Mode\n\n"
             "Tell me: (1) Objective, (2) Tech stack, (3) Timeline, (4) Current progress.\n\n"
             "I will return: Architecture blueprint ──▶ File structure ──▶ Milestones ──▶ Testing checklist ──▶ Demo script.")
+
 def research_mode(message):
     return (f"✦ Research & Comparative Analysis Mode\n\n"
             f"Query: {message[:140]}\n\n"
@@ -831,63 +623,13 @@ def research_mode(message):
             "• Trade-Off Matrix: Comparative evaluation across performance, maintainability, and scalability.\n"
             "• Recommendation: Tailored architectural choices for your specific constraints.\n\n"
             "Rephrase as 'compare X vs Y for goal Z' for deep side-by-side matrices.")
-LEARNING_PATHS = {
-    "python": [
-        "Python Foundations (Variables, Data Types, Control Flow & Loops)",
-        "Modular Engineering (Functions, Modules, Scope, Clean Code)",
-        "Object-Oriented Architecture (Classes, Inheritance, Encapsulation)",
-        "Data Engineering Fundamentals (NumPy, Pandas, Vectorized Ops)",
-        "Production Capstone: Building and Testing an End-to-End App"
-    ],
-    "artificial_intelligence": [
-        "AI Foundations: Symbolic Logic, Graph Search (BFS/DFS, A*), Knowledge Representation",
-        "Machine Learning Core: Supervised & Unsupervised Algorithms, Loss Optimization",
-        "Deep Learning & Neural Networks: Multi-Layer Perceptrons, CNNs, Transformers",
-        "Generative AI & LLMs: Attention Mechanisms, Prompt Engineering, RAG Systems",
-        "Production Capstone: Autonomous Multi-Modal AI Agent with Tool Use"
-    ],
-    "machine_learning": [
-        "Foundations: Linear Algebra, Probability & Python Refresher",
-        "Supervised Learning: Linear Regression, Logistic Classification",
-        "Unsupervised Learning: K-Means Clustering, PCA Dimensionality",
-        "Deep Learning: Multi-Layer Perceptrons, Backpropagation, PyTorch",
-        "Capstone: Real-World Scikit-Learn / PyTorch Model Deployment"
-    ],
-    "web_development": [
-        "Web Foundations: Semantic HTML5, Modern CSS Layouts (Flexbox & Grid)",
-        "JavaScript Deep Dive: ES6+, DOM Manipulation, Async/Await",
-        "React Architecture: Components, Hooks (useState, useEffect), State Flow",
-        "API Integration & Backend: Node.js / Express REST API Development",
-        "Capstone: Full-Stack Reactive Learning Dashboard Application"
-    ],
-    "cloud_computing": [
-        "Systems & Networking: Linux Shell, TCP/IP, DNS, Security Groups",
-        "Core Cloud Architecture: AWS Compute (EC2), Object Storage (S3), IAM",
-        "Containerization: Docker Container Workflows & Docker Compose",
-        "Orchestration & Deployments: Kubernetes, CI/CD, Serverless Lambda",
-        "Capstone: Multi-Tier Resilient Cloud Infrastructure Deployment"
-    ],
-    "cybersecurity": [
-        "Network Defense: Firewalls, VPNs, TLS Encryption, Packet Analysis",
-        "Web Security: OWASP Top 10 Vulnerabilities (SQLi, XSS, CSRF)",
-        "Cryptography: Symmetric/Asymmetric Ciphers, Hashing, Key Management",
-        "Threat Detection & Incident Response: SIEM, Log Forensics, Zero Trust",
-        "Capstone: Defensive Audit & Penetration Testing Report"
-    ]
-}
+
 def learning_path(message, context=None):
-    tk, _ = base.find_best_topic(message)
-    key = tk if tk in LEARNING_PATHS else "python"
-    steps = LEARNING_PATHS[key]
-    phases = ["FOUNDATION", "CORE MECHANICS", "APPLIED PATTERNS", "ADVANCED ARCHITECTURE", "PRODUCTION CAPSTONE"]
+    u_name = "Learner"
+    if context and context.get("user"):
+        u_name = context["user"].get("full_name") or "Learner"
+    return generate_learning_path(message, u_name)
 
-    out = [f"✦ Comprehensive Learning Roadmap — {key.replace('_', ' ').title()}\n"]
-    for i, s in enumerate(steps):
-        phase_label = phases[min(i, len(phases)-1)]
-        out.append(f"◈ Step {i+1} [{phase_label}]:\n  ❯ {s}")
-
-    out.append("\n💡 How to Progress: Master each milestone ──▶ Validate with 'Quiz' ──▶ Generate 'Study Notes' for review!")
-    return "\n".join(out)
 def flashcards(topic_key, subtopic_key, n=4):
     topic_data = base.TOPIC_KNOWLEDGE.get(topic_key)
     if not topic_data:
@@ -909,10 +651,69 @@ def flashcards(topic_key, subtopic_key, n=4):
         lines.append(f"🎴 Card {i}: {c['front']}\n> 💡 Answer: ||{c['back']}||\n")
     lines.append("💡 Click any flashcard above to review, or select 'Quiz' to test your recall!")
     return "\n".join(lines), cards
-def dynamic_flashcards(topic_title):
-    clean_title = topic_title.strip().rstrip("?").replace("flashcards for", "").replace("flashcard on", "").strip().title() or "Key Concept"
-    return "\n".join(lines), cards
 
+def dynamic_flashcards(topic_title):
+    clean_title = topic_title.strip().rstrip("?").replace("flashcards for", "").replace("flashcards on", "").replace("flashcard for", "").replace("flashcard on", "").replace("flashcards", "").replace("flashcard", "").strip().title() or "Key Concept"
+    t_lower = clean_title.lower()
+
+    if any(k in t_lower for k in ("react", "frontend", "web dev", "html", "javascript", "css")):
+        cards = [
+            {"front": f"What is the Virtual DOM in {clean_title} and why is it used?", "back": "An in-memory lightweight representation of the real DOM. React diffs it against previous state (reconciliation) and updates only changed DOM nodes, minimizing expensive browser reflows."},
+            {"front": f"What is the difference between props and state in {clean_title}?", "back": "Props are read-only external parameters passed from parent to child. State is internal, mutable data owned and managed within the component that triggers re-rendering upon update."},
+            {"front": f"What does the useEffect hook do in {clean_title}?", "back": "Performs side effects (data fetching, subscriptions, manual DOM mutations) after render. The dependency array controls when it re-runs (empty array [] runs only once on mount)."},
+            {"front": f"What is Component Reconciliation and Key Prop purpose?", "back": "Keys give stable identities to array elements across renders so React can track which items were added, removed, or re-ordered, avoiding unnecessary re-mounting of unchanged child components."}
+        ]
+    elif any(k in t_lower for k in ("python", "variable", "function", "oop", "class")):
+        cards = [
+            {"front": f"How does Python manage memory and variable assignment?", "back": "Variables in Python are named object references pointing to objects in heap memory. Python uses reference counting and a generational garbage collector to deallocate unreachable memory."},
+            {"front": f"What is the difference between mutable and immutable types in Python?", "back": "Immutable types (int, float, str, tuple, frozenset) cannot be modified in-place after creation; any modification produces a new object. Mutable types (list, dict, set) can be updated in-place."},
+            {"front": f"What are *args and **kwargs used for in Python functions?", "back": "*args captures arbitrary positional arguments as a tuple, while **kwargs captures arbitrary keyword arguments as a dictionary, providing flexible dynamic signatures."},
+            {"front": f"What is the Global Interpreter Lock (GIL) in CPython?", "back": "A mutex that allows only one native thread to execute Python bytecode at a time, preventing race conditions in memory management, but requiring multiprocessing for CPU-bound parallelism."}
+        ]
+    elif any(k in t_lower for k in ("cloud", "devops", "docker", "kubernetes", "aws")):
+        cards = [
+            {"front": f"What is the fundamental difference between a Docker Container and a Virtual Machine?", "back": "VMs virtualize the entire hardware layer and run a complete guest OS with high overhead. Docker containers share the host Linux kernel and isolate user space namespaces/cgroups, starting in milliseconds."},
+            {"front": f"What is Kubernetes Pod and why is it the smallest deployable unit?", "back": "A Pod encapsulates one or more co-located containers that share the same network namespace (IP and port space) and storage volumes on a single Kubernetes node."},
+            {"front": f"What is Infrastructure as Code (IaC) and what problem does it solve?", "back": "Managing infrastructure (VMs, VPCs, clusters) declaratively through versioned configuration files (e.g., Terraform), eliminating manual configuration drift and ensuring reproducibility."},
+            {"front": f"What is the difference between horizontal and vertical scaling in Cloud?", "back": "Vertical scaling (scaling up) adds more CPU/RAM to a single instance (hardware bound). Horizontal scaling (scaling out) adds more parallel instances behind a load balancer (fault tolerant)."}
+        ]
+    elif any(k in t_lower for k in ("data structure", "algorithm", "dsa", "binary search", "tree", "graph")):
+        cards = [
+            {"front": f"What is Big-O notation and what does it measure?", "back": "Big-O characterizes the upper bound of an algorithm's asymptotic runtime or memory consumption as the input size N scales to infinity, ignoring constant factors."},
+            {"front": f"When should you choose a Hash Table over a Binary Search Tree?", "back": "Hash tables offer O(1) average lookup, insert, and delete when order does not matter. Balanced BSTs (like AVL/Red-Black) provide O(log N) operations while maintaining sorted keys."},
+            {"front": f"What is the difference between Breadth-First Search (BFS) and Depth-First Search (DFS)?", "back": "BFS explores neighbors level-by-level using a Queue (FIFO), optimal for unweighted shortest path. DFS traverses branch depths using a Stack (LIFO) or recursion, optimal for cycle detection and topological sort."},
+            {"front": f"What is Dynamic Programming and what two properties are required?", "back": "An optimization technique that solves complex problems by combining solutions to overlapping subproblems with optimal substructure, caching results via memoization or tabulation."}
+        ]
+    elif any(k in t_lower for k in ("ai", "machine learning", "ml", "neural", "deep learning")):
+        cards = [
+            {"front": f"What is the difference between Supervised and Unsupervised Learning in {clean_title}?", "back": "Supervised learning trains on labeled pairs (input X, target Y) to learn a mapping function. Unsupervised learning discovers hidden patterns and clustering in unlabeled data."},
+            {"front": f"What is Overfitting and what are 3 proven ways to prevent it?", "back": "When a model learns training data noise and performs poorly on unseen data. Prevented via: 1) L1/L2 regularization or Dropout, 2) cross-validation with early stopping, 3) data augmentation."},
+            {"front": f"What is Backpropagation in Deep Neural Networks?", "back": "The algorithm that calculates the partial derivatives of the loss function with respect to every weight using the calculus chain rule, propagating errors backward to update weights via Gradient Descent."},
+            {"front": f"What is the Self-Attention mechanism in Transformer architectures?", "back": "Allows every token in a sequence to dynamically weigh and attend to every other token simultaneously (via Query, Key, Value dot-products), capturing long-range dependencies without recurrence."}
+        ]
+    elif any(k in t_lower for k in ("database", "sql", "dbms", "nosql", "postgres")):
+        cards = [
+            {"front": f"What do ACID properties guarantee in Database Transactions?", "back": "Atomicity (all or nothing), Consistency (preserves integrity rules), Isolation (concurrent transactions don't interfere), and Durability (committed data survives crashes)."},
+            {"front": f"What is the difference between Clustered and Non-Clustered Indexes?", "back": "A clustered index defines the physical sorting order of rows on disk (only one per table, typically Primary Key). Non-clustered indexes create a separate B-Tree holding pointers to the actual rows."},
+            {"front": f"When should you choose a NoSQL Document Store over a Relational SQL DB?", "back": "Choose NoSQL when schema is rapidly changing or unstructured, requires horizontal sharding at massive scale, or deals with hierarchical documents rather than relational joins."},
+            {"front": f"What is Database Normalization and why is 3NF standard?", "back": "Organizing data to eliminate redundancy and update anomalies. 3NF ensures every non-key column depends strictly on the whole primary key and nothing but the primary key (no transitive dependencies)."}
+        ]
+    else:
+        cards = [
+            {"front": f"What is the fundamental core definition of {clean_title}?", "back": f"{clean_title} is a foundational concept designed to solve core domain challenges by organizing logic, data flow, and operational state into reliable components."},
+            {"front": f"What is the primary real-world use case or mechanism of {clean_title}?", "back": f"Enables structured execution and predictable behavior, allowing systems or practitioners to execute processes efficiently without errors."},
+            {"front": f"What is a common misconception or pitfall when working with {clean_title}?", "back": f"Confusing the surface syntax or rules with underlying principles; neglecting edge-case constraints or boundary conditions during implementation."},
+            {"front": f"What is the best practice rule to master {clean_title} for production and exams?", "back": f"Build hands-on minimal reproducible examples, test boundary conditions thoroughly, and connect theoretical formulas directly to practical implementation."}
+        ]
+
+    lines = [
+        f"✦ Active Recall Flashcards — {clean_title}\n",
+        "Active recall cards ready! Review the question, recall the answer aloud, then flip or click to verify:\n"
+    ]
+    for i, c in enumerate(cards, 1):
+        lines.append(f"🎴 Card {i}: {c['front']}\n> 💡 Answer: ||{c['back']}||\n")
+    lines.append("💡 Click any flashcard above to review, or select 'Quiz' to test your recall!")
+    return "\n".join(lines), cards
 def synthesize_notes(topic_key, subtopic_key, depth="detailed"):
     topic_data = base.TOPIC_KNOWLEDGE.get(topic_key)
     if not topic_data:
@@ -1958,22 +1759,16 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     # ─────────────────────────────────────────────────────────────────────────────
     if mode == "revise":
         target_card_topic = concept_query if is_pure_revise else message
-        if tk:
-            txt, cards = flashcards(tk, sk)
-            return {"reply": txt, "mode": mode, "cards": cards, "suggestions": ["Quiz me on this 🎯", "Download PDF study guide 📄", "Explain step-by-step 🌿"]}
-        txt, cards = dynamic_flashcards(target_card_topic)
-        return {"reply": txt, "mode": mode, "cards": cards, "suggestions": ["Quiz me on this 🎯", "Download PDF study guide 📄", "Explain step-by-step 🌿"]}
+        clean_target_topic = extract_clean_concept_title(target_card_topic) or target_card_topic.strip().rstrip("?").title() or "Core Concepts"
+        clean_target_topic = re.sub(r"\b(?:flashcards?|flash cards?|revise|revision|active recall)\s*(?:on|for|about)?\s*", "", clean_target_topic, flags=re.I).strip() or "Core Concepts"
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # ── 5. Socratic Guiding Dialogue Mode ("socratic")
-    # ─────────────────────────────────────────────────────────────────────────────
-    if mode == "socratic":
-        llm_reply = _llm_respond(f"Engage in Socratic tutoring on '{concept_query}'. Ask a guiding thought question without giving the answer away.", context, history, extra, mode)
-        if llm_reply:
-            return {"reply": llm_reply, "mode": mode, "suggestions": ["Give me a hint 💡", "I think the answer is...", "Reveal the answer 🔓"]}
-        if tk:
-            return {"reply": socratic_turn(tk, sk, history), "mode": mode, "suggestions": ["Give me a hint 💡", "I think the answer is...", "Reveal the answer 🔓"]}
-        return {"reply": dynamic_socratic(concept_query, history), "mode": mode, "suggestions": ["Give me a hint 💡", "I think the answer is...", "Reveal the answer 🔓"]}
+        txt, cards = dynamic_flashcards(clean_target_topic)
+        return {
+            "reply": txt,
+            "mode": mode,
+            "cards": cards,
+            "suggestions": ["Quiz me on this 🎯", "Download PDF study guide 📄", "Explain step-by-step 🌿", "Next Flashcard Set 🎴"]
+        }
 
     # ─────────────────────────────────────────────────────────────────────────────
     # ── 6. Code Debugging & Analysis Mode ("code")
@@ -2042,10 +1837,49 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
     # ── 7. Math & Formula Solver ("math")
     # ─────────────────────────────────────────────────────────────────────────────
     if mode == "math":
-        llm_reply = _llm_respond(f"Solve the mathematical formula or explain the mathematical principles for: {message}. Show clear step-by-step substitution and calculations.", context, history, extra, mode)
-        if llm_reply:
-            return {"reply": llm_reply, "mode": mode, "suggestions": ["Show another calculation 🧮", "Give a practice problem 🎯", "Explain intuitively 🌿"]}
-        return {"reply": math_mode(message), "mode": mode, "suggestions": ["Show another calculation 🧮", "Give a practice problem 🎯", "Explain intuitively 🌿"]}
+        math_prompt = (
+            f"You are Sastra, an elite step-by-step mathematical AI solver for Capacity Connect.\n"
+            f"The learner {u_name} requested a complete step-by-step solution for: '{message}'.\n\n"
+            f"CRITICAL REQUIREMENTS — STEP-BY-STEP MATHEMATICAL SOLUTION:\n"
+            f"1. ✦ Mathematical Step-by-Step Solver: [Clear Problem Title]\n\n"
+            f"2. ◈ 1. Problem Formulation & Identified Variables:\n"
+            f"   - State the input equation, variables, unknown(s), and constraints clearly.\n\n"
+            f"---\n\n"
+            f"3. ◈ 2. Governing Formulas & Principles:\n"
+            f"   - State the exact theorem, formula, algebraic rule, or definition applied.\n\n"
+            f"---\n\n"
+            f"4. ◈ 3. Step-by-Step Algebraic Derivation:\n"
+            f"   Break down every single algebraic operation without skipping steps:\n"
+            f"   • ✦ Step 1: <Name of Operation> ──▶ <Resulting state>\n"
+            f"   • ✦ Step 2: <Name of Operation> ──▶ <Resulting state>\n"
+            f"   • ✦ Step 3: <Name of Operation> ──▶ <Resulting state>\n\n"
+            f"---\n\n"
+            f"5. ◈ 4. Prominent Final Solution:\n"
+            f"   🎯 Final Solution: <Exact Value(s) with units if applicable>\n\n"
+            f"---\n\n"
+            f"6. ◈ 5. Substitution Proof & Verification Check:\n"
+            f"   - Substitute the solution back into the original equation.\n"
+            f"   - Show LHS = ... and RHS = ...\n"
+            f"   - Conclude with 'LHS = RHS ✓ Verified Correct!'.\n\n"
+            f"STRICT RULES:\n"
+            f"- Separate each major section with clean horizontal rules ('---').\n"
+            f"- NEVER output raw markdown double asterisks (**).\n"
+            f"- Do NOT skip algebraic steps."
+        )
+        llm_reply = _llm_respond(math_prompt, context, history, extra, mode)
+        if llm_reply and "Final Solution:" in llm_reply:
+            return {
+                "reply": llm_reply,
+                "mode": mode,
+                "suggestions": ["Show another calculation 🧮", "Give a practice problem 🎯", "Explain intuition 🌿", "Step-by-step breakdown 📝"]
+            }
+
+        solved_math = solve_mathematical_problem(message)
+        return {
+            "reply": solved_math,
+            "mode": mode,
+            "suggestions": ["Show another calculation 🧮", "Give a practice problem 🎯", "Explain intuition 🌿", "Step-by-step breakdown 📝"]
+        }
 
     # ─────────────────────────────────────────────────────────────────────────────
     # ── 8. Learning Path & Roadmap Mode ("path")
@@ -2088,17 +1922,31 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
             print(f"[Astra] Roadmap visual generation error: {e}")
 
         path_prompt = (
-            f"You are Sastra, an AI curriculum architect for Capacity Connect. "
-            f"The learner {u_name} requested a complete, structured learning roadmap for: '{clean_path_topic}'.\n\n"
-            f"Provide a comprehensive, beautifully structured roadmap from absolute zero to production mastery across 6 clear phases:\n"
-            f"✦ Comprehensive {clean_path_topic} Learning Roadmap — From Zero to Mastery 🚀\n\n"
-            f"Explain Phase 1 (Foundations), Phase 2 (Core Architecture), Phase 3 (Systems & Data), Phase 4 (Advanced Patterns), Phase 5 (Specialization), and Phase 6 (Cloud Production).\n"
-            f"For each phase, outline 3-5 core topics and 1 hands-on milestone project.\n\n"
-            f"💡 Recommended Next Step: Ready to begin? Reply with 'Let's start learning' or click below to dive into Phase 1!\n\n"
-            f"Do NOT output raw markdown double asterisks (**)."
+            f"You are Sastra, an elite AI curriculum architect for Capacity Connect.\n"
+            f"The learner {u_name} requested a comprehensive step-by-step learning roadmap for: '{clean_path_topic}'.\n\n"
+            f"CRITICAL REQUIREMENTS — STEP-BY-STEP LEARNING PATH PROTOCOL:\n"
+            f"1. ✦ Comprehensive {clean_path_topic} Learning Roadmap — From Zero to Mastery 🚀\n\n"
+            f"2. ◈ 1. Executive Curriculum Overview & Target Outcomes:\n"
+            f"   - 2-3 sentences summarizing the journey from novice to production-grade practitioner.\n\n"
+            f"---\n\n"
+            f"3. ◈ 2. Master Progression Index & Phase Table:\n"
+            f"   Provide a comprehensive 5-column Markdown Roadmap Table:\n"
+            f"   | Phase # | Phase Title | Core Focus & Milestones | Hands-On Milestone Project | Estimated Timeline |\n"
+            f"   | :--- | :--- | :--- | :--- | :--- |\n\n"
+            f"---\n\n"
+            f"4. ◈ 3. Step-by-Step Phase Breakdown (Every Phase Detailed):\n"
+            f"   Detail 5 progressive phases (Phase 1: Foundations & Core Grammar, Phase 2: Architecture & Data Modeling, Phase 3: Systems & Frameworks, Phase 4: Production Resilience & Testing, Phase 5: Capstone Deployment & Cloud Scale).\n"
+            f"   For each phase include: Core Competencies, Must-Read Concept, and Milestone Project.\n\n"
+            f"---\n\n"
+            f"5. ◈ 4. Immediate Kickoff Action Drill:\n"
+            f"   - 1 immediate task {u_name} should execute today to start Phase 1.\n\n"
+            f"STRICT RULES:\n"
+            f"- Separate major sections with clean horizontal dividers ('---').\n"
+            f"- NEVER output raw double asterisks (**).\n"
+            f"- Ensure progressive step-by-step sequencing."
         )
         llm_reply = _llm_respond(path_prompt, context, history, extra, "path")
-        final_reply = llm_reply or learning_path(clean_path_topic, context)
+        final_reply = llm_reply or generate_learning_path(clean_path_topic, u_name)
 
         return {
             "reply": final_reply,

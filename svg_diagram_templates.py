@@ -1706,12 +1706,35 @@ def build_topic_concept_table_svg(topic_query="Neural Networks"):
     4. Structured 5-column vector comparison/summary table (Component, Plain English, Analogy, Code, Takeaway)
     5. Bottom exam mastery & checklist bar
     """
-    raw_topic = re.sub(r'^(?:draw|show|generate|create|render|visualize|diagram|visual|image|photo|table|roadmap|an?|the|of|for|about)\s+', '', str(topic_query).strip(), flags=re.I).strip()
+    raw_topic = re.sub(
+        r'^(?:give\s+me\s+(?:an?\s+)?|show\s+me\s+(?:an?\s+)?|give\s+(?:an?\s+)?|show\s+(?:an?\s+)?|draw\s+(?:me\s+)?(?:an?\s+)?|generate\s+(?:an?\s+)?|create\s+(?:an?\s+)?|render\s+|visualize\s+|diagram\s+(?:of\s+)?|visual\s+(?:of\s+)?|image\s+(?:of\s+)?|photo\s+(?:of\s+)?|table\s+(?:of\s+)?|roadmap\s+(?:of\s+)?|an?\s+|the\s+|of\s+|for\s+|about\s+)+',
+        '', str(topic_query).strip(), flags=re.I
+    ).strip()
     clean_topic = raw_topic.title() if raw_topic else "Concept Architecture"
     p_lower = str(topic_query).lower()
 
+    # Dedicated Clinical Patient Healthcare Dataset
+    if any(k in p_lower for k in ["patient", "clinical data", "medical data", "ehr", "hospital data", "patient record", "patient dataset", "health data", "patient data"]):
+        title = "PATIENT HEALTHCARE & CLINICAL EHR DATASET"
+        icon = "🏥"
+        badge = "Healthcare Informatics"
+        definition = "A normalized clinical Electronic Health Record (EHR) dataset capturing patient demographics, biomarkers, diagnoses, and therapeutic outcomes."
+        how_it_works = "Relational schema indexes Patient IDs with ICD-10 diagnostic codes, real-time vital telemetry (BP, HR, SpO2, Blood Glucose), and pharmacology."
+        why_it_matters = "Powers clinical decision support, epidemiological predictive modeling, disease risk scoring, and evidence-based medicine."
+        benefit = "Standardizes medical observations under HL7 FHIR protocols with strict HIPAA Safe Harbor de-identification."
+        analogy = "An aircraft black-box flight recorder: records every vital biomarker, physician intervention, and clinical event in chronological order!"
+        rule = "Rule: Clinical datasets must enforce HIPAA / GDPR compliance with strict anonymization of all 18 PHI identifiers."
+        rows = [
+            ("P-1001 (Sarah J.)", "45y • Female • Caucasian", "Type 2 Diabetes Mellitus (ICD-10: E11.9);", "HbA1c: 7.8% • Fasting Glucose: 142 mg/dL", "Metabolic telemetry", "endocrine monitoring", "BP: 128/82 | HR: 72 | 145 mg/dL", "Metformin 500mg", "Controlled / Stable outcome"),
+            ("P-1002 (Marcus C.)", "62y • Male • Asian", "Stage 1 Essential Hypertension (ICD-10: I10);", "Elevated systolic vascular resistance", "Cardiovascular pressure", "arterial compliance", "BP: 144/92 | HR: 84 | SpO2: 98%", "Lisinopril 10mg", "Monitoring / Improving"),
+            ("P-1003 (Elena R.)", "29y • Female • Hispanic", "Acute Exacerbation Bronchial Asthma (J45.9);", "Decreased peak expiratory flow (PEF: 68%)", "Pulmonary airflow meter", "bronchial impedance", "SpO2: 93% | Resp: 24/min", "Albuterol Inhaler", "Discharged / Recovered"),
+            ("P-1004 (David O.)", "54y • Male • African", "Coronary Atherosclerosis & Angina (I25.1);", "Total Cholesterol: 238 mg/dL • LDL: 154 mg/dL", "Coronary artery scanner", "lipid accumulation check", "BP: 136/88 | Total Chol: 238", "Atorvastatin 20mg", "Under Cardiology Review"),
+            ("P-1005 (Ananya P.)", "38y • Female • South Asian", "Hashimoto's Hypothyroidism (ICD-10: E06.3);", "Elevated Serum TSH: 7.2 mIU/L • Fatigue score", "Endocrine hormone panel", "thyroid functional index", "TSH: 7.2 mIU/L | HR: 64 bpm", "Levothyroxine 50mcg", "Hormone Level Normalized")
+        ]
+        checklist = "EHR Ingestion Pipeline: Patient Demographics ➔ Vitals Log ➔ ICD-10 Diagnosis ➔ Pharmacology ➔ Safe Harbor Anonymization."
+
     # Pre-built curated domain profiles with high pedagogical precision
-    if any(k in p_lower for k in ["photosynthesis", "chloroplast", "calvin cycle", "plant biology"]):
+    elif any(k in p_lower for k in ["photosynthesis", "chloroplast", "calvin cycle", "plant biology"]):
         title = "PHOTOSYNTHESIS & BIOCHEMICAL CELL CYCLE"
         icon = "🌿"
         badge = "Biological Science"
@@ -1977,6 +2000,26 @@ def build_topic_concept_table_svg(topic_query="Neural Networks"):
         ]
         checklist = "Full-Stack Protocol: UI Interaction ➔ State Dispatch ➔ HTTP REST Payload ➔ Backend Auth & DB ➔ JSON Response."
 
+    elif any(k in p_lower for k in ["dataset", "data set", "tabular data", "database table", "sample data", "data records"]):
+        clean_name = clean_topic.replace("Dataset", "").replace("Data Set", "").strip() or "Tabular"
+        title = f"{clean_name.upper()} DATASET SCHEMA & TABULAR RECORDS"
+        icon = "📊"
+        badge = "Data Science & Tabular Schema"
+        definition = f"A structured tabular dataset of {clean_name} organized into normalized relational feature columns and sample observations."
+        how_it_works = f"Indexes primary entity records with categorical descriptors, numerical continuous metrics, and outcome labels."
+        why_it_matters = f"Provides clean, preprocessed demonstration records for exploratory data analysis (EDA) and predictive modeling."
+        benefit = f"Structured tabular format ensures zero missing data schema ambiguity and high machine learning compatibility."
+        analogy = f"Think of a dataset like an organized ledger: each row is a unique observation and each column is a measurable attribute!"
+        rule = f"Rule: Always verify data types, handle missing values (imputation), and normalize scales before model training."
+        rows = [
+            ("Record #001", "Primary entity sample", f"Features: {clean_name} Baseline attributes;", "standard normalized metrics and indicators.", "Training sample 1", "reference observation", "status: Active | score: 94.5", "Feature Matrix", "Ground truth verified"),
+            ("Record #002", "Secondary entity sample", f"Features: {clean_name} High-variance profile;", "elevated quantitative measures and flags.", "Training sample 2", "edge-boundary sample", "status: Pending | score: 78.2", "Feature Matrix", "Valid within tolerance"),
+            ("Record #003", "Tertiary entity sample", f"Features: {clean_name} Low-variance profile;", "nominal expected ranges across all columns.", "Validation sample 1", "median distribution point", "status: Verified | score: 88.0", "Feature Matrix", "Standard baseline record"),
+            ("Record #004", "Quaternary entity sample", f"Features: {clean_name} Outlier observation;", "extreme boundary case for robustness evaluation.", "Stress test sample", "evaluation benchmark", "status: Warning | score: 62.1", "Feature Matrix", "Anomaly detected & logged"),
+            ("Record #005", "Quinary entity sample", f"Features: {clean_name} Target class sample;", "optimal outcome performance indicators.", "Test holdout sample", "generalization probe", "status: Complete | score: 99.4", "Feature Matrix", "Optimal target outcome")
+        ]
+        checklist = f"Data Pipeline: Raw Input ➔ Schema Validation ➔ Missing Value Imputation ➔ Feature Scaling ➔ Model Train/Test Split."
+
     else:
         # Universal Smart Generator for any technical topic
         title = f"{clean_topic.upper()} — CONCEPT ARCHITECTURE"
@@ -1996,6 +2039,10 @@ def build_topic_concept_table_svg(topic_query="Neural Networks"):
             ("5. Output & Scale", "Production delivery & metrics", f"Emits transformed results, writes audit telemetry,", "and scales horizontally under load.", "High-speed conveyor belt", "delivering finished product", "export_result(payload)", "Production Ready", "Monitor system metrics")
         ]
         checklist = f"Mastery Checklist: Core Concept ➔ Working Mechanism ➔ Syntax / Implementation ➔ Error Handling ➔ Production Scale."
+
+    header_title = _esc_xml(title)
+    if "EXPLANATION" not in header_title and "TABLE" not in header_title:
+        header_title = f"{header_title} — EXPLANATION &amp; TABLE"
 
     # Build SVG XML
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 700" width="1040" height="700">
@@ -2025,7 +2072,7 @@ def build_topic_concept_table_svg(topic_query="Neural Networks"):
     <rect width="980" height="56" rx="14" fill="rgba(15,23,42,0.85)" stroke="rgba(56,189,248,0.35)" stroke-width="1"/>
     <circle cx="35" cy="28" r="16" fill="#0284c7"/>
     <text x="35" y="34" text-anchor="middle" fill="#ffffff" font-family="Outfit, Arial, sans-serif" font-size="16">{_esc_xml(icon)}</text>
-    <text x="65" y="32" fill="#ffffff" font-family="Outfit, Arial, sans-serif" font-size="16" font-weight="bold">{_esc_xml(title)} — EXPLANATION &amp; TABLE</text>
+    <text x="65" y="32" fill="#ffffff" font-family="Outfit, Arial, sans-serif" font-size="16" font-weight="bold">{header_title}</text>
     <text x="65" y="47" fill="#94a3b8" font-family="Inter, Arial, sans-serif" font-size="11">Sastra AI Pedagogical Vector Architecture • Structured Knowledge Matrix • 100% Vector Fidelity</text>
     <rect x="815" y="13" width="150" height="30" rx="8" fill="rgba(56,189,248,0.12)" stroke="#38bdf8"/>
     <text x="890" y="33" text-anchor="middle" fill="#38bdf8" font-family="Outfit, Arial, sans-serif" font-size="11" font-weight="bold">{_esc_xml(badge)}</text>
