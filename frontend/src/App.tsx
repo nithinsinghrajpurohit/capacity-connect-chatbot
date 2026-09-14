@@ -1,21 +1,33 @@
 import React, { useState } from 'react';
 import HeroSection from './components/HeroSection';
 import MarqueeScroller from './components/MarqueeScroller';
+import RulesSection from './components/RulesSection';
+import RulesModal from './components/RulesModal';
 import AstraChatbot from './components/AstraChatbot';
 import { motion } from 'motion/react';
 
 export const App: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
 
   return (
     <main className="min-h-screen w-full bg-[#f9fafb] py-8 md:py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-start relative">
       {/* Hero Section Container */}
-      <HeroSection onOpenChat={() => setIsChatOpen(true)} />
+      <HeroSection
+        onOpenChat={() => setIsChatOpen(true)}
+        onOpenRules={() => setIsRulesOpen(true)}
+      />
 
       {/* Seamless Marquee Logo Scroller */}
       <div className="w-full max-w-[1400px]">
         <MarqueeScroller />
       </div>
+
+      {/* Dedicated Rules of Use Section at Landing Page */}
+      <RulesSection
+        onOpenRules={() => setIsRulesOpen(true)}
+        onOpenChat={() => setIsChatOpen(true)}
+      />
 
       {/* Floating Action Button for Astra Chatbot */}
       <motion.button
@@ -32,6 +44,16 @@ export const App: React.FC = () => {
           </span>
         </div>
       </motion.button>
+
+      {/* Sastra AI Operating Rules Modal */}
+      <RulesModal
+        isOpen={isRulesOpen}
+        onClose={() => setIsRulesOpen(false)}
+        onOpenChat={() => {
+          setIsRulesOpen(false);
+          setIsChatOpen(true);
+        }}
+      />
 
       {/* Astra AI Chatbot Modal */}
       <AstraChatbot isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />

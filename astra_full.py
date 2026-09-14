@@ -2026,7 +2026,7 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
             return {
                 "reply": deep_res,
                 "mode": "deep",
-                "suggestions": ["Quiz me on Photosynthesis 🎯", "Light vs Dark Reactions ⚡", "Visual & Table 📊", "Download PDF Notes 📄"]
+                "suggestions": ["Download PDF Notes 📄"]
             }
 
         deep_prompt = (
@@ -2080,13 +2080,13 @@ def _process_full_raw(message, user_id=None, session_id="", explicit_mode=None, 
             return {
                 "reply": llm_reply,
                 "mode": "deep",
-                "suggestions": [f"Quiz me on {target_deep_topic} 🎯", "Visual & Table 📊", "Explain simpler 🌿", "Download PDF Notes 📄"]
+                "suggestions": ["Download PDF Notes 📄"]
             }
 
         return {
             "reply": dynamic_deep_explanation(target_deep_topic),
             "mode": "deep",
-            "suggestions": [f"Quiz me on {target_deep_topic} 🎯", "Visual & Table 📊", "Explain simpler 🌿", "Download PDF Notes 📄"]
+            "suggestions": ["Download PDF Notes 📄"]
         }
 
     # ─────────────────────────────────────────────────────────────────────────────

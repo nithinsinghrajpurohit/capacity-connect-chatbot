@@ -4,9 +4,10 @@ import { ChevronRight, Sparkles } from 'lucide-react';
 
 interface HeroSectionProps {
   onOpenChat: () => void;
+  onOpenRules: () => void;
 }
 
-export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenChat }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenChat, onOpenRules }) => {
   return (
     <div className="relative w-full max-w-[1400px] mx-auto rounded-[48px] bg-white border border-slate-200/50 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.03)] overflow-hidden h-[600px] flex flex-col">
       {/* Underlying Video Background Layer */}
@@ -42,17 +43,32 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenChat }) => {
             decentralized web for enterprises, builders and communities alike.
           </p>
 
-          {/* Contact Button -> Launches Sastra Assistant */}
-          <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            onClick={onOpenChat}
-            className="bg-[#0a152d] text-white px-7 py-3 rounded-full text-[14px] font-medium shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center gap-2"
-          >
-            <span>Ask Sastra Assistant</span>
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-          </motion.button>
+          {/* Action Buttons -> Launches Sastra Assistant & Rules */}
+          <div className="flex flex-wrap items-center gap-3">
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              onClick={onOpenChat}
+              className="bg-[#0a152d] text-white px-7 py-3 rounded-full text-[14px] font-medium shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center gap-2"
+            >
+              <span>Ask Sastra Assistant</span>
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              onClick={onOpenRules}
+              className="bg-white/85 hover:bg-white text-[#0a152d] border border-slate-200/80 px-5 py-3 rounded-full text-[14px] font-medium shadow-2xs hover:shadow-md transition-all cursor-pointer flex items-center gap-2 backdrop-blur-md"
+            >
+              <span>Rules of Use</span>
+              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold border border-blue-200/60">
+                📜
+              </span>
+            </motion.button>
+          </div>
         </motion.div>
       </div>
 
@@ -86,6 +102,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenChat }) => {
               className="text-[12px] font-semibold text-slate-500 hover:text-[#0a1b33] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
             >
               Quiz
+            </button>
+            <button
+              onClick={onOpenRules}
+              className="text-[12px] font-semibold text-slate-500 hover:text-[#0a1b33] px-3 py-1.5 rounded-full transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <span>Rules</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
             </button>
           </div>
 

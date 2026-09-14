@@ -709,6 +709,10 @@ export const AstraChatbot: React.FC<{
       const data = await res.json();
 
       let botImage = data.image;
+      let botSuggestions = data.suggestions;
+      if (data.mode === 'deep' || activeMode === 'deep') {
+        botSuggestions = ['Download PDF Notes 📄'];
+      }
 
       const botMsg: Message = {
         id: `bot-${Date.now()}`,
@@ -716,12 +720,12 @@ export const AstraChatbot: React.FC<{
         content: data.reply || '✦ I am ready to help you learn.',
         image: botImage,
         mode: data.mode,
-        suggestions: data.suggestions || [
+        suggestions: botSuggestions || (activeMode === 'deep' ? ['Download PDF Notes 📄'] : [
           '📄 Download PDF Study Guide',
           'Explain with rich symbols 🌿',
           'Draw an AI diagram 🎨',
           'Quiz me on this 🎯',
-        ],
+        ]),
         cards: data.cards,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
@@ -1469,49 +1473,58 @@ export const AstraChatbot: React.FC<{
                     </div>
 
                     {/* Suggestions Chips */}
-                    {msg.suggestions && msg.suggestions.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {msg.suggestions.map((sug, sIdx) => {
-                          const isPdfChip =
-                            sug.toLowerCase().includes('pdf') || sug.includes('📄');
-                          return (
-                            <button
-                              key={sIdx}
-                              onClick={() => {
-                                if (isPdfChip && msg.content) {
-                                  handleDownloadPdf(msg.content, 'Sastra Study Guide', msg.id);
-                                } else {
-                                  const matchMode = MODES.find((m) =>
-                                    sug.toLowerCase().includes(m.label.toLowerCase()) ||
-                                    (m.id === 'revise' && sug.toLowerCase().includes('flashcard')) ||
-                                    (m.id === 'math' && sug.toLowerCase().includes('math')) ||
-                                    (m.id === 'path' && sug.toLowerCase().includes('path')) ||
-                                    (m.id === 'image' && (sug.toLowerCase().includes('visual') || sug.toLowerCase().includes('diagram')))
-                                  );
-                                  if (matchMode && !activeMode) {
-                                    handleModeSelect(matchMode.id);
-                                    return;
+                    {(() => {
+                      const isDeepMsg = msg.mode === 'deep' || (activeMode === 'deep' && msg.role === 'assistant');
+                      const activeSuggestions = isDeepMsg
+                        ? ['Download PDF Notes 📄']
+                        : msg.suggestions;
+
+                      if (!activeSuggestions || activeSuggestions.length === 0) return null;
+
+                      return (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {activeSuggestions.map((sug, sIdx) => {
+                            const isPdfChip =
+                              sug.toLowerCase().includes('pdf') || sug.includes('📄');
+                            return (
+                              <button
+                                key={sIdx}
+                                onClick={() => {
+                                  if (isPdfChip && msg.content) {
+                                    handleDownloadPdf(msg.content, 'Sastra Study Guide', msg.id);
+                                  } else {
+                                    const matchMode = MODES.find((m) =>
+                                      sug.toLowerCase().includes(m.label.toLowerCase()) ||
+                                      (m.id === 'revise' && sug.toLowerCase().includes('flashcard')) ||
+                                      (m.id === 'math' && sug.toLowerCase().includes('math')) ||
+                                      (m.id === 'path' && sug.toLowerCase().includes('path')) ||
+                                      (m.id === 'image' && (sug.toLowerCase().includes('visual') || sug.toLowerCase().includes('diagram')))
+                                    );
+                                    if (matchMode && !activeMode) {
+                                      handleModeSelect(matchMode.id);
+                                      return;
+                                    }
+                                    handleSend(sug);
                                   }
-                                  handleSend(sug);
-                                }
-                              }}
-                              className={`text-[11px] font-medium px-3 py-1 rounded-full shadow-2xs transition-all flex items-center gap-1 cursor-pointer border ${
-                                isPdfChip
-                                  ? 'bg-blue-50/70 hover:bg-blue-100 text-blue-700 border-blue-200'
-                                  : 'bg-white hover:bg-slate-50 text-slate-600 hover:text-[#0a1b33] border-slate-200/80 hover:border-slate-300'
-                              }`}
-                            >
-                              <span>{sug}</span>
-                              {isPdfChip ? (
-                                <FileDown className="w-3 h-3 text-blue-500" />
-                              ) : (
-                                <ChevronRight className="w-3 h-3 text-slate-400" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                                }}
+                                className={`text-[11px] font-medium px-3 py-1 rounded-full shadow-2xs transition-all flex items-center gap-1 cursor-pointer border ${
+                                  isPdfChip
+                                    ? 'bg-blue-50/70 hover:bg-blue-100 text-blue-700 border-blue-200 font-semibold'
+                                    : 'bg-white hover:bg-slate-50 text-slate-600 hover:text-[#0a1b33] border-slate-200/80 hover:border-slate-300'
+                                }`}
+                              >
+                                <span>{sug}</span>
+                                {isPdfChip ? (
+                                  <FileDown className="w-3 h-3 text-blue-500" />
+                                ) : (
+                                  <ChevronRight className="w-3 h-3 text-slate-400" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </motion.div>
               ))}
